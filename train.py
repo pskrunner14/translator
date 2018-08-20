@@ -5,27 +5,30 @@ import torch
 import torch.nn as nn
 
 from torch import optim
+from torch.optim.lr_scheduler import StepLR
+from configparser import ConfigParser
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from utils import get_torch_device, prepare_data, tensors_from_pair, time_since, save_pickle
+from utils import get_torch_device, debug, prepare_data, tensors_from_pair, time_since, save_pickle
 from network import EncoderRNN, AttnDecoderRNN
 from evaluate import evaluate_randomly
 
 plt.switch_backend('agg')
 
-SOS_TOKEN = 0
-EOS_TOKEN = 1
+config = ConfigParser()
+config.read('config.cfg')
 
-MAX_LENGTH = 10
+debug('Loaded configuration from config.cfg')
 
-TEACHER_FORCING_RATIO = 0.5
+EOS_TOKEN = int(config['model']['eos_token'])
+SOS_TOKEN = int(config['model']['sos_token'])
+MAX_LENGTH = int(config['model']['max_length'])
+TEACHER_FORCING_RATIO = float(config['model']['teacher_forcing_ratio'])
 
-HIDDEN_SIZE = 256
-
-def train(input_tensor, target_tensor, encoder, decoder, 
-        encoder_optimizer, decoder_optimizer, loss_function, max_length=MAX_LENGTH):
+def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, 
+        decoder_optimizer, loss_function, max_length=MAX_LENGTH):
     
     encoder_hidden = encoder.init_hidden()
     
@@ -36,7 +39,7 @@ def train(input_tensor, target_tensor, encoder, decoder,
     target_length = target_tensor.size(0)
     
     encoder_outputs = torch.zeros(max_length, 
-                        encoder.hidden_size, device=device)
+        encoder.hidden_size, device=device)
     
     loss = 0
     
@@ -52,15 +55,13 @@ def train(input_tensor, target_tensor, encoder, decoder,
     if use_teacher_forcing:
         # Teacher forcing: Feed the target as the next input
         for di in range(target_length):
-            decoder_output, decoder_hidden, _ = decoder(
-                decoder_input, decoder_hidden, encoder_outputs)
+            decoder_output, decoder_hidden, _ = decoder(decoder_input, decoder_hidden, encoder_outputs)
             loss += loss_function(decoder_output, target_tensor[di])
             decoder_input = target_tensor[di] # Teacher forcing
     else:
         # Without teacher forcing: use its own predictions as the next input
         for di in range(target_length):
-            decoder_output, decoder_hidden, _ = decoder(
-                decoder_input, decoder_hidden, encoder_outputs)
+            decoder_output, decoder_hidden, _ = decoder(decoder_input, decoder_hidden, encoder_outputs)
             _, topi = decoder_output.topk(1)
             decoder_input = topi.squeeze().detach() # detach from history as input
             
@@ -76,7 +77,7 @@ def train(input_tensor, target_tensor, encoder, decoder,
     return loss.item() / target_length
 
 def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000, 
-        save_every=10000, plot_every=100, learning_rate=0.001):
+        save_every=10000, plot_every=100, lr=0.01, lr_step_divisor=3, lr_step_gamma=0.1):
 
     start = time.time()
     
@@ -84,8 +85,11 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000,
     print_loss_total = 0
     plot_loss_total = 0 
     
-    encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
-    decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
+    encoder_optimizer = optim.Adam(encoder.parameters(), lr=lr)
+    decoder_optimizer = optim.Adam(decoder.parameters(), lr=lr)
+
+    encoder_lr_scheduler = StepLR(encoder_optimizer, step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
+    decoder_lr_scheduler = StepLR(decoder_optimizer, step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
     
     training_pairs = [tensors_from_pair(random.choice(pairs), input_lang, output_lang) for i in range(epochs)]
     
@@ -97,6 +101,9 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000,
         training_pair = training_pairs[epoch - 1]
         input_tensor = training_pair[0]
         target_tensor = training_pair[1]
+
+        encoder_lr_scheduler.step()
+        decoder_lr_scheduler.step()
         
         loss = train(input_tensor, target_tensor, encoder, decoder, 
                      encoder_optimizer, decoder_optimizer, loss_function)
@@ -129,9 +136,6 @@ def show_plot(points):
     ax.yaxis.set_major_locator(loc)
     plt.plot(points)
 
-def debug(message):
-    print('\nDEBUG: {}\n'.format(message))
-
     
 if __name__ == '__main__':
 
@@ -140,7 +144,8 @@ if __name__ == '__main__':
     device_idx = torch.cuda.current_device()
     device_cap = torch.cuda.get_device_capability(device_idx)
     debug('PyTorch using {} device {}:{} with Compute Capability {}.{}'
-        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), device_idx, device_cap[0], device_cap[1]))
+        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), 
+        device_idx, device_cap[0], device_cap[1]))
 
     input_lang, output_lang, train_pairs, test_pairs = prepare_data('eng', 'fra', True)
     print(random.choice(train_pairs))
@@ -148,16 +153,22 @@ if __name__ == '__main__':
     debug('Saving training and testing data...')
     save_pickle((train_pairs, test_pairs), 'data/eng-fra.data')
 
-    encoder1 = EncoderRNN(input_lang.n_words, HIDDEN_SIZE, layer_type='lstm', num_layers=2).to(device)
-    attn_decoder1 = AttnDecoderRNN(HIDDEN_SIZE, output_lang.n_words, layer_type='lstm', num_layers=2, dropout_p=0.3).to(device)
+    encoder1 = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
+        layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers'])).to(device)
+            
+    attn_decoder1 = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, layer_type=config['rnn']['layer_type'], 
+        num_layers=int(config['rnn']['num_layers']), dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
 
     debug('Training models...')
 
-    train_epochs(encoder1, attn_decoder1, train_pairs, epochs=100000)
+    train_epochs(encoder1, attn_decoder1, train_pairs, epochs=int(config['training']['epochs']), 
+            print_every=int(config['training']['print_every']), save_every=int(config['training']['save_every']), 
+            plot_every=int(config['training']['plot_every']), lr=float(config['training']['lr']),
+            lr_step_divisor=int(config['training']['lr_step_divisor']), lr_step_gamma=float(config['training']['lr_step_gamma']))
 
     debug('Saving trained models...')
-    torch.save(encoder1, 'models/encoder1.fra_eng.model')
-    torch.save(attn_decoder1, 'models/attn_decoder1.fra_eng.model')
+    torch.save(encoder1.state_dict(), 'models/encoder1.fra_eng.model')
+    torch.save(attn_decoder1.state_dict(), 'models/attn_decoder1.fra_eng.model')
 
     debug('Evaluating models...')
     evaluate_randomly(test_pairs, encoder1, attn_decoder1, input_lang)

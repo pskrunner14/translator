@@ -3,8 +3,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils import get_torch_device
+from configparser import ConfigParser
 
-MAX_LENGTH = 10
+config = ConfigParser()
+config.read('config.cfg')
+
+MAX_LENGTH = int(config['model']['max_length'])
 
 device = get_torch_device()
 

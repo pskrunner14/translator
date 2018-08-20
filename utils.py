@@ -8,13 +8,17 @@ from io import open
 from random import shuffle
 
 import torch
-# import torchtext
+from configparser import ConfigParser
 
+config = ConfigParser()
+config.read('config.cfg')
+
+# import torchtext
 # fast_text = torchtext.vocab.FastText(language='en')
 
-EOS_TOKEN = 1
-
-MAX_LENGTH = 10
+SOS_TOKEN = int(config['model']['sos_token'])
+EOS_TOKEN = int(config['model']['eos_token'])
+MAX_LENGTH = int(config['model']['max_length'])
 
 eng_prefixes = (
     "i am ", "i m ",
@@ -30,12 +34,15 @@ def get_torch_device():
 
 device = get_torch_device()
 
+def debug(message):
+    print('\nDEBUG: {}\n'.format(message))
+
 class Lang:
     def __init__(self, name):
         self.name = name
         self.word_to_idx = {}
         self.word_to_count = {}
-        self.idx_to_word = {0: 'SOS', 1: 'EOS'}
+        self.idx_to_word = {SOS_TOKEN: 'SOS', EOS_TOKEN: 'EOS'}
         self.n_words = 2
         
     def add_word(self, word):

@@ -5,14 +5,19 @@ import torch
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+from configparser import ConfigParser
+
 from utils import get_torch_device, prepare_data, tensor_from_sentence, load_pickle
 
 plt.switch_backend('agg')
 
-SOS_TOKEN = 0
-EOS_TOKEN = 1
+config = ConfigParser()
+config.read('config.cfg')
 
-MAX_LENGTH = 10
+EOS_TOKEN = int(config['model']['eos_token'])
+SOS_TOKEN = int(config['model']['sos_token'])
+MAX_LENGTH = int(config['model']['max_length'])
+
 
 def evaluate(encoder, decoder, sentence, input_lang, max_length=MAX_LENGTH):
     with torch.no_grad():
@@ -95,13 +100,19 @@ if __name__ == '__main__':
         print('Usage: python evaluate.py [num tests] [encoder] [decoder]')
         exit(0)
 
-    encoder = torch.load('models/{}'.format(encoder_path))
-    decoder = torch.load('models/{}'.format(decoder_path))
-
     input_lang, output_lang, _, _ = prepare_data('eng', 'fra', True)
 
     _, pairs = load_pickle('data/eng-fra.data')
     
+    encoder = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
+            layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers'])).to(device)
+            
+    decoder = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, layer_type=config['rnn']['layer_type'], 
+            num_layers=int(config['rnn']['num_layers']), dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
+
+    encoder.load_state_dict(torch.load('models/{}'.format(encoder_path)))
+    decoder.load_state_dict(torch.load('models/{}'.format(decoder_path)))
+
     evaluate_randomly(pairs, encoder, decoder, input_lang, num_tests)
 
     evaluateAndShowAttention("elle a cinq ans de moins que moi .", encoder, decoder, input_lang)
