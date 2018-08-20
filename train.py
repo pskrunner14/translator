@@ -1,28 +1,30 @@
-import os 
-import sys
+import time
+import random
 
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
 from torch import optim
-import torch.nn.functional as F
 
-from utils import *
-from network import *
+from utils import get_torch_device, prepare_data, tensors_from_pair, time_since, save_pickle, load_pickle
+from network import EncoderRNN, AttnDecoderRNN
+from evaluate import evaluate_randomly
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device_idx = torch.cuda.current_device()
-device_name = torch.cuda.get_device_name(device_idx)
-device_cap = torch.cuda.get_device_capability(device_idx)
-print('PyTorch: Using {} Device {}:{} with Compute Capability {}.{}'
-      .format(str(device).upper(), device_name, device_idx, device_cap[0], device_cap[1]))
+plt.switch_backend('agg')
 
-input_lang, output_lang, pairs = prepare_data('eng', 'fra', True)
-print(random.choice(pairs))
+SOS_token = 0
+EOS_token = 1
+
+MAX_LENGTH = 10
 
 teacher_forcing_ratio = 0.5
 
-def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, 
-          decoder_optimizer, criterion, max_length=MAX_LENGTH):
+hidden_size = 256
+
+def train(input_tensor, target_tensor, encoder, decoder, 
+        encoder_optimizer, decoder_optimizer, criterion, max_length=MAX_LENGTH):
     
     encoder_hidden = encoder.init_hidden()
     
@@ -49,16 +51,16 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer,
     if use_teacher_forcing:
         # Teacher forcing: Feed the target as the next input
         for di in range(target_length):
-            decoder_output, decoder_hidden, decoder_attention = decoder(
+            decoder_output, decoder_hidden, _ = decoder(
                 decoder_input, decoder_hidden, encoder_outputs)
             loss += criterion(decoder_output, target_tensor[di])
             decoder_input = target_tensor[di] # Teacher forcing
     else:
         # Without teacher forcing: use its own predictions as the next input
         for di in range(target_length):
-            decoder_output, decoder_hidden, decoder_attention = decoder(
+            decoder_output, decoder_hidden, _ = decoder(
                 decoder_input, decoder_hidden, encoder_outputs)
-            topv, topi = decoder_output.topk(1)
+            _, topi = decoder_output.topk(1)
             decoder_input = topi.squeeze().detach() # detach from history as input
             
             loss += criterion(decoder_output, target_tensor[di])
@@ -72,7 +74,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer,
     
     return loss.item() / target_length
 
-def train_iterations(encoder, decoder, n_iters, print_every=1000, plot_every=100, learning_rate=0.01):
+def train_iterations(encoder, decoder, pairs, n_iters=10000, print_every=1000, save_every=10000, plot_every=100, learning_rate=0.01):
     start = time.time()
     
     plot_losses = []
@@ -82,7 +84,7 @@ def train_iterations(encoder, decoder, n_iters, print_every=1000, plot_every=100
     encoder_optimizer = optim.SGD(encoder.parameters(), lr=learning_rate)
     decoder_optimizer = optim.SGD(decoder.parameters(), lr=learning_rate)
     
-    training_pairs = [tensors_from_pair(random.choice(pairs)) for i in range(n_iters)]
+    training_pairs = [tensors_from_pair(random.choice(pairs), input_lang, output_lang) for i in range(n_iters)]
     
     criterion = nn.NLLLoss()
     
@@ -107,14 +109,47 @@ def train_iterations(encoder, decoder, n_iters, print_every=1000, plot_every=100
             plot_loss_avg = plot_loss_total / plot_every
             plot_losses.append(plot_loss_avg)
             plot_loss_total = 0
+
+        if iteration % save_every == 0:
+            print('Saving models on Epoch {}'.format(iteration))
+            torch.save(encoder, 'models/encoder1.fra_eng_{}'.format(iteration))
+            torch.save(decoder, 'models/attn_decoder1.fra_eng_{}'.format(iteration))
         
     show_plot(plot_losses)
+
+def show_plot(points):
+    plt.figure()
+    _, ax = plt.subplots()
+    loc = ticker.MultipleLocator(base=0.2)
+    ax.yaxis.set_major_locator(loc)
+    plt.plot(points)
+
     
 if __name__ == '__main__':
-    
-    hidden_size = 256
+
+    '''Using CUDA Device'''
+    device = get_torch_device()
+    device_idx = torch.cuda.current_device()
+    device_cap = torch.cuda.get_device_capability(device_idx)
+    print('PyTorch: Using {} Device {}:{} with Compute Capability {}.{}\n'
+        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), device_idx, device_cap[0], device_cap[1]))
+
+    input_lang, output_lang, train_pairs, test_pairs = prepare_data('eng', 'fra', True)
+    print(random.choice(train_pairs))
+
+    print('\nSaving training and testing data...\n')
+    save_pickle((train_pairs, test_pairs), 'data/eng-fra.data.pkl')
 
     encoder1 = EncoderRNN(input_lang.n_words, hidden_size).to(device)
     attn_decoder1 = AttnDecoderRNN(hidden_size, output_lang.n_words, dropout_p=0.1).to(device)
 
-    train_iterations(encoder1, attn_decoder1, 75000, print_every=1000)
+    print('Training models...\n')
+
+    train_iterations(encoder1, attn_decoder1, train_pairs, 150000)
+
+    print('Saving trained models...\n')
+    torch.save(encoder1, 'models/encoder1.fra_eng.model')
+    torch.save(attn_decoder1, 'models/attn_decoder1.fra_eng.model')
+
+    print('Evaluating models...\n')
+    evaluate_randomly(test_pairs, encoder1, attn_decoder1)

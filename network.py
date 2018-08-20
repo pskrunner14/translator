@@ -1,10 +1,15 @@
-import os
-import sys
-
 import torch
 import torch.nn as nn
-from torch import optim
 import torch.nn.functional as F
+
+from utils import get_torch_device
+
+SOS_token = 0
+EOS_token = 1
+
+MAX_LENGTH = 10
+
+device = get_torch_device()
 
 """
 Encoder RNN Model

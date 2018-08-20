@@ -1,30 +1,32 @@
+from __future__ import unicode_literals, print_function, division
 import time
 import math
 import re
-import unicodedata
-import string
-import random
 import pickle
+import unicodedata
 from io import open
-from __future__ import unicode_literals, print_function, division
+from random import shuffle
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+import torch
 
 SOS_token = 0
 EOS_token = 1
 
 MAX_LENGTH = 10
 
-eng_prefixes = (
-    "i am ", "i m ",
-    "he is", "he s ",
-    "she is", "she s",
-    "you are", "you re ",
-    "we are", "we re ",
-    "they are", "they re "
-)
+# eng_prefixes = (
+#     "i am ", "i m ",
+#     "he is", "he s ",
+#     "she is", "she s",
+#     "you are", "you re ",
+#     "we are", "we re ",
+#     "they are", "they re "
+# )
+
+def get_torch_device():
+    return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+device = get_torch_device()
 
 class Lang:
     def __init__(self, name):
@@ -82,8 +84,7 @@ def read_langs(lang1, lang2, reverse=False):
 
 def filter_pair(p):
     return len(p[0].split(' ')) < MAX_LENGTH and \
-            len(p[1].split(' ')) < MAX_LENGTH and \
-            p[1].startswith(eng_prefixes)
+            len(p[1].split(' ')) < MAX_LENGTH
 
 def filter_pairs(pairs):
     return [pair for pair in pairs if filter_pair(pair)]
@@ -95,16 +96,17 @@ def prepare_data(lang1, lang2, reverse=False):
     
     pairs = filter_pairs(pairs)
     print('Trimmed to {} sentence pairs'.format(len(pairs)))
+
+    shuffle(pairs)
     
     print('Counting words...')
     for pair in pairs:
         input_lang.add_sentence(pair[0])
         output_lang.add_sentence(pair[1])
     
-    print('Counted words:')
     print(input_lang.name, input_lang.n_words)
     print(output_lang.name, output_lang.n_words)
-    return input_lang, output_lang, pairs
+    return input_lang, output_lang, pairs[:-3000], pairs[-3000:]
 
 def indices_from_sentence(lang, sentence):
     return [lang.word_to_idx[word] for word in sentence.split(' ')]
@@ -114,7 +116,7 @@ def tensor_from_sentence(lang, sentence):
     indices.append(EOS_token)
     return torch.tensor(indices, dtype=torch.long, device=device).view(-1, 1)
 
-def tensors_from_pair(pair):
+def tensors_from_pair(pair, input_lang, output_lang):
     input_tensor = tensor_from_sentence(input_lang, pair[0])
     target_tensor = tensor_from_sentence(output_lang, pair[1])
     return (input_tensor, target_tensor)
@@ -131,11 +133,17 @@ def time_since(since, percent):
     rs = es - s
     return 'ETA: {} (~ {})'.format(as_minutes(rs), as_minutes(s))
 
-plt.switch_backend('agg')
 
-def show_plot(points):
-    plt.figure()
-    fig, ax = plt.subplots()
-    loc = ticker.MultipleLocator(base=0.2)
-    ax.yaxis.set_major_locator(loc)
-    plt.plot(points)
+"""
+Pickles a python object into memory
+"""
+def save_pickle(obj, file_name):
+	with open('{}.pkl'.format(file_name), 'wb') as file:
+		pickle.dump(obj, file)
+
+"""
+Loads a Pickle object from memory
+"""
+def load_pickle(file_name):
+	with open('{}.pkl'.format(file_name), 'rb') as file:
+		return pickle.load(file)

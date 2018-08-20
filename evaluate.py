@@ -1,13 +1,17 @@
-import os
 import sys
+import random
 
 import torch
-import torch.nn as nn
-from torch import optim
-import torch.nn.functional as F
+import matplotlib.pyplot as plt
 
-from utils import *
-from network import *
+from utils import get_torch_device, prepare_data, tensor_from_sentence, save_pickle, load_pickle
+
+plt.switch_backend('agg')
+
+SOS_token = 0
+EOS_token = 1
+
+MAX_LENGTH = 10
 
 def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
     with torch.no_grad():
@@ -32,7 +36,7 @@ def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs)
             decoder_attentions[di] = decoder_attention.data
-            topv, topi = decoder_output.data.topk(1)
+            _, topi = decoder_output.data.topk(1)
             if topi.item() == EOS_token:
                 decoded_words.append('<EOS>')
                 break
@@ -42,24 +46,64 @@ def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
             
         return decoded_words, decoder_attentions[: di + 1]
     
-def evaluate_randomly(encoder, decoder, n=10):
-    for i in range(n):
+def evaluate_randomly(pairs, encoder, decoder, n=10):
+    for _ in range(n):
         pair = random.choice(pairs)
         print('Input: {}'.format(pair[0]))
         print('Target: {}'.format(pair[1]))
-        output_words, attentions = evaluate(encoder, decoder, pair[0])
+        output_words, _ = evaluate(encoder, decoder, pair[0])
         output_sentence = ' '.join(output_words)
         print('Predicted: {}\n'.format(output_sentence))
+
+def showAttention(input_sentence, output_words, attentions):
+    # Set up figure with colorbar
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    cax = ax.matshow(attentions.numpy(), cmap='bone')
+    fig.colorbar(cax)
+
+    # Set up axes
+    ax.set_xticklabels([''] + input_sentence.split(' ') + ['<EOS>'], rotation=90)
+    ax.set_yticklabels([''] + output_words)
+
+    # Show label at every tick
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+
+    plt.show()
+
+
+def evaluateAndShowAttention(input_sentence, encoder, decoder):
+    output_words, attentions = evaluate(encoder, decoder, input_sentence)
+    print('input =', input_sentence)
+    print('output =', ' '.join(output_words))
+    showAttention(input_sentence, output_words, attentions)
         
 if __name__ == '__main__':
+
+    '''Using CUDA Device'''
+    device = get_torch_device()
+    device_idx = torch.cuda.current_device()
+    device_cap = torch.cuda.get_device_capability(device_idx)
+    print('PyTorch: Using {} Device {}:{} with Compute Capability {}.{}'
+        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), device_idx, device_cap[0], device_cap[1]))
     
-    if len(sys.argv) == 5:
-        test_data, model_name, pretrained = sys.argv[1], int(sys.argv[2]), sys.argv[3], bool(int(sys.argv[4]))
+    if len(sys.argv) == 4:
+        num_tests, encoder_path, decoder_path = int(sys.argv[1]), sys.argv[2], sys.argv[3]
     else:
-        print('Usage: python train.py [test data] [num tests] [model name] [pretrained (0/1)]')
+        print('Usage: python evaluate.py [num tests] [encoder] [decoder]')
         exit(0)
+
+    encoder = torch.load('models/{}'.format(encoder_path))
+    decoder = torch.load('models/{}'.format(decoder_path))
+
+    input_lang, output_lang, _, _ = prepare_data('eng', 'fra', True)
+
+    _, pairs = load_pickle('data/eng-fra.data.pkl')
     
-    evaluate_randomly(encoder1, attn_decoder1, num_test)
-    
-    output_words, attentions = evaluate(encoder1, attn_decoder1, "je suis trop froid .")
-    plt.matshow(attentions.numpy())
+    evaluate_randomly(pairs, encoder, decoder, num_tests)
+
+    evaluateAndShowAttention("elle a cinq ans de moins que moi .", encoder, decoder)
+    evaluateAndShowAttention("elle est trop petit .", encoder, decoder)
+    evaluateAndShowAttention("je ne crains pas de mourir .", encoder, decoder)
+    evaluateAndShowAttention("c est un jeune directeur plein de talent .", encoder, decoder)
