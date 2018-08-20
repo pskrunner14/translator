@@ -3,17 +3,18 @@ import random
 
 import torch
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
-from utils import get_torch_device, prepare_data, tensor_from_sentence, save_pickle, load_pickle
+from utils import get_torch_device, prepare_data, tensor_from_sentence, load_pickle
 
 plt.switch_backend('agg')
 
-SOS_token = 0
-EOS_token = 1
+SOS_TOKEN = 0
+EOS_TOKEN = 1
 
 MAX_LENGTH = 10
 
-def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
+def evaluate(encoder, decoder, sentence, input_lang, max_length=MAX_LENGTH):
     with torch.no_grad():
         input_tensor = tensor_from_sentence(input_lang, sentence)
         input_length = input_tensor.size()[0]
@@ -23,10 +24,10 @@ def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
         
         for ei in range(input_length):
             encoder_output, encoder_hidden = encoder(input_tensor[ei], 
-                                                    encoder_hidden)
+                encoder_hidden)
             encoder_outputs[ei] += encoder_output[0, 0]
             
-        decoder_input = torch.tensor([[SOS_token]], device=device)
+        decoder_input = torch.tensor([[SOS_TOKEN]], device=device)
         decoder_hidden = encoder_hidden
         
         decoded_words = []
@@ -37,7 +38,7 @@ def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
                 decoder_input, decoder_hidden, encoder_outputs)
             decoder_attentions[di] = decoder_attention.data
             _, topi = decoder_output.data.topk(1)
-            if topi.item() == EOS_token:
+            if topi.item() == EOS_TOKEN:
                 decoded_words.append('<EOS>')
                 break
             else:
@@ -46,12 +47,12 @@ def evaluate(encoder, decoder, sentence, max_length=MAX_LENGTH):
             
         return decoded_words, decoder_attentions[: di + 1]
     
-def evaluate_randomly(pairs, encoder, decoder, n=10):
+def evaluate_randomly(pairs, encoder, decoder, input_lang, n=10):
     for _ in range(n):
         pair = random.choice(pairs)
         print('Input: {}'.format(pair[0]))
         print('Target: {}'.format(pair[1]))
-        output_words, _ = evaluate(encoder, decoder, pair[0])
+        output_words, _ = evaluate(encoder, decoder, pair[0], input_lang)
         output_sentence = ' '.join(output_words)
         print('Predicted: {}\n'.format(output_sentence))
 
@@ -73,8 +74,8 @@ def showAttention(input_sentence, output_words, attentions):
     plt.show()
 
 
-def evaluateAndShowAttention(input_sentence, encoder, decoder):
-    output_words, attentions = evaluate(encoder, decoder, input_sentence)
+def evaluateAndShowAttention(input_sentence, encoder, decoder, input_lang):
+    output_words, attentions = evaluate(encoder, decoder, input_sentence, input_lang)
     print('input =', input_sentence)
     print('output =', ' '.join(output_words))
     showAttention(input_sentence, output_words, attentions)
@@ -99,11 +100,11 @@ if __name__ == '__main__':
 
     input_lang, output_lang, _, _ = prepare_data('eng', 'fra', True)
 
-    _, pairs = load_pickle('data/eng-fra.data.pkl')
+    _, pairs = load_pickle('data/eng-fra.data')
     
-    evaluate_randomly(pairs, encoder, decoder, num_tests)
+    evaluate_randomly(pairs, encoder, decoder, input_lang, num_tests)
 
-    evaluateAndShowAttention("elle a cinq ans de moins que moi .", encoder, decoder)
-    evaluateAndShowAttention("elle est trop petit .", encoder, decoder)
-    evaluateAndShowAttention("je ne crains pas de mourir .", encoder, decoder)
-    evaluateAndShowAttention("c est un jeune directeur plein de talent .", encoder, decoder)
+    evaluateAndShowAttention("elle a cinq ans de moins que moi .", encoder, decoder, input_lang)
+    evaluateAndShowAttention("elle est trop petit .", encoder, decoder, input_lang)
+    evaluateAndShowAttention("je ne crains pas de mourir .", encoder, decoder, input_lang)
+    evaluateAndShowAttention("c est un jeune directeur plein de talent .", encoder, decoder, input_lang)

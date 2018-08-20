@@ -8,20 +8,22 @@ from io import open
 from random import shuffle
 
 import torch
+# import torchtext
 
-SOS_token = 0
-EOS_token = 1
+# fast_text = torchtext.vocab.FastText(language='en')
+
+EOS_TOKEN = 1
 
 MAX_LENGTH = 10
 
-# eng_prefixes = (
-#     "i am ", "i m ",
-#     "he is", "he s ",
-#     "she is", "she s",
-#     "you are", "you re ",
-#     "we are", "we re ",
-#     "they are", "they re "
-# )
+eng_prefixes = (
+    "i am ", "i m ",
+    "he is", "he s ",
+    "she is", "she s",
+    "you are", "you re ",
+    "we are", "we re ",
+    "they are", "they re "
+)
 
 def get_torch_device():
     return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -84,7 +86,8 @@ def read_langs(lang1, lang2, reverse=False):
 
 def filter_pair(p):
     return len(p[0].split(' ')) < MAX_LENGTH and \
-            len(p[1].split(' ')) < MAX_LENGTH
+            len(p[1].split(' ')) < MAX_LENGTH and \
+            p[1].startswith(eng_prefixes)
 
 def filter_pairs(pairs):
     return [pair for pair in pairs if filter_pair(pair)]
@@ -106,14 +109,14 @@ def prepare_data(lang1, lang2, reverse=False):
     
     print(input_lang.name, input_lang.n_words)
     print(output_lang.name, output_lang.n_words)
-    return input_lang, output_lang, pairs[:-3000], pairs[-3000:]
+    return input_lang, output_lang, pairs[:-500], pairs[-500:]
 
 def indices_from_sentence(lang, sentence):
     return [lang.word_to_idx[word] for word in sentence.split(' ')]
 
 def tensor_from_sentence(lang, sentence):
     indices = indices_from_sentence(lang, sentence)
-    indices.append(EOS_token)
+    indices.append(EOS_TOKEN)
     return torch.tensor(indices, dtype=torch.long, device=device).view(-1, 1)
 
 def tensors_from_pair(pair, input_lang, output_lang):
@@ -124,7 +127,7 @@ def tensors_from_pair(pair, input_lang, output_lang):
 def as_minutes(s):
     m = math.floor(s / 60)
     s -= m * 60
-    return '{}m {:.2f}s'.format(m, s)
+    return '{}m {:.0f}s'.format(m, s)
 
 def time_since(since, percent):
     now = time.time()
