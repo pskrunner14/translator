@@ -40,7 +40,7 @@ class EncoderRNN(nn.Module):
     
     def init_hidden(self):
         if self.layer_type == 'gru':
-            return torch.zeros(self.num_layer, 1, self.hidden_size, device=device)
+            return torch.zeros(self.num_layers, 1, self.hidden_size, device=device)
         else:
             return (torch.zeros(self.num_layers, 1, self.hidden_size, device=device),
                     torch.zeros(self.num_layers, 1, self.hidden_size, device=device))
@@ -96,7 +96,7 @@ class AttnDecoderRNN(nn.Module):
     
     def init_hidden(self):
         if self.layer_type == 'gru':
-            return torch.zeros(self.num_layer, 1, self.hidden_size, device=device)
+            return torch.zeros(self.num_layers, 1, self.hidden_size, device=device)
         else:
             return (torch.zeros(self.num_layers, 1, self.hidden_size, device=device),
                     torch.zeros(self.num_layers, 1, self.hidden_size, device=device))

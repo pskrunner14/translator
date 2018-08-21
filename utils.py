@@ -116,7 +116,7 @@ def prepare_data(lang1, lang2, reverse=False):
     
     print(input_lang.name, input_lang.n_words)
     print(output_lang.name, output_lang.n_words)
-    return input_lang, output_lang, pairs[:-500], pairs[-500:]
+    return input_lang, output_lang, pairs[:-100], pairs[-100:]
 
 def indices_from_sentence(lang, sentence):
     return [lang.word_to_idx[word] for word in sentence.split(' ')]

@@ -1,0 +1,4 @@
+torch==0.4.1
+torchtext==0.2.3
+matplotlib==2.2.2
+configparser==3.5.0
