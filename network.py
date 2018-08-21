@@ -23,8 +23,9 @@ class EncoderRNN(nn.Module):
         self.num_layers = num_layers
         self.layer_type = layer_type
         self.directions = 1
-        if bidirectional:
-            self.bidirectional = True
+        self.bidirectional = bidirectional
+        
+        if self.bidirectional:
             self.directions = 2
 
         self.embedding = nn.Embedding(input_size, self.hidden_size)
@@ -67,8 +68,8 @@ class AttnDecoderRNN(nn.Module):
         self.num_layers = num_layers
         self.layer_type = layer_type
         self.directions = 1
+        self.bidirectional = bidirectional
         if bidirectional:
-            self.bidirectional = True
             self.directions = 2
         
         self.embedding = nn.Embedding(self.output_size, self.hidden_size)

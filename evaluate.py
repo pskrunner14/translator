@@ -104,7 +104,7 @@ if __name__ == '__main__':
     config = ConfigParser()
     config.read('models/{}'.format(config_path))
 
-    input_lang, output_lang, pairs = load_pickle('models/autoencoder.fra_eng.lstm2.data')
+    input_lang, output_lang, pairs = load_pickle('models/autoencoder.fra_eng.lstm2_bi.data')
     
     encoder = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
             layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers'])).to(device)
