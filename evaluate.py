@@ -7,7 +7,7 @@ import matplotlib.ticker as ticker
 
 from configparser import ConfigParser
 
-from utils import get_torch_device, prepare_data, tensor_from_sentence, load_pickle
+from utils import get_torch_device, tensor_from_sentence, load_pickle
 from network import EncoderRNN, AttnDecoderRNN
 
 plt.switch_backend('agg')
@@ -38,7 +38,7 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang, max_length=MAX
         
         decoded_words = []
         decoder_attentions = torch.zeros(max_length, max_length)
-        
+
         for di in range(max_length):
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs)
@@ -98,13 +98,13 @@ if __name__ == '__main__':
     if len(sys.argv) == 5:
         num_tests, encoder_path, decoder_path, config_path = int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
     else:
-        print('Usage: python evaluate.py [num tests] [encoder] [decoder]')
+        print('Usage: python evaluate.py [num tests] [encoder] [decoder] [config file]')
         exit(0)
 
     config = ConfigParser()
     config.read('models/{}'.format(config_path))
 
-    input_lang, output_lang, pairs = load_pickle('models/eng-fra.data')
+    input_lang, output_lang, pairs = load_pickle('models/autoencoder.fra_eng.lstm2.data')
     
     encoder = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
             layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers'])).to(device)

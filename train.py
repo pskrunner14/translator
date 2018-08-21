@@ -124,8 +124,8 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000,
 
         if epoch % save_every == 0:
             debug('Saving models on Epoch {}'.format(epoch))
-            torch.save(encoder1.state_dict(), 'models/encoder1.fra_eng_{}'.format(epoch))
-            torch.save(attn_decoder1.state_dict(), 'models/attn_decoder1.fra_eng_{}'.format(epoch))
+            torch.save(encoder1.state_dict(), 'models/encoder.lstm2.fra_eng_{}'.format(epoch))
+            torch.save(attn_decoder1.state_dict(), 'models/attn_decoder.lstm2.fra_eng_{}'.format(epoch))
         
     show_plot(plot_losses)
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     print(random.choice(train_pairs))
 
     debug('Saving input language, output language and testing data...')
-    save_pickle((input_lang, output_lang, test_pairs), 'models/eng-fra.data')
+    save_pickle((input_lang, output_lang, test_pairs), 'models/autoencoder.fra_eng.lstm2.data')
 
     encoder1 = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
         layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers'])).to(device)
@@ -159,20 +159,19 @@ if __name__ == '__main__':
     attn_decoder1 = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, layer_type=config['rnn']['layer_type'], 
         num_layers=int(config['rnn']['num_layers']), dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
 
-    debug('Training models...')
+    debug('Saving configuration...')
+    with open('models/autoencoder.fra_eng.lstm2.cfg', 'w') as config_file:
+        config.write(config_file)
 
+    debug('Training models...')
     train_epochs(encoder1, attn_decoder1, train_pairs, epochs=int(config['training']['epochs']), 
             print_every=int(config['training']['print_every']), save_every=int(config['training']['save_every']), 
             plot_every=int(config['training']['plot_every']), lr=float(config['training']['lr']),
             lr_step_divisor=int(config['training']['lr_step_divisor']), lr_step_gamma=float(config['training']['lr_step_gamma']))
 
-    debug('Saving configuration...')
-    with open('models/autoencoder1.fra_eng.cfg', 'w') as config_file:
-        config.write(config_file)
-
     debug('Saving trained models...')
-    torch.save(encoder1.state_dict(), 'models/encoder1.fra_eng.model')
-    torch.save(attn_decoder1.state_dict(), 'models/attn_decoder1.fra_eng.model')
+    torch.save(encoder1.state_dict(), 'models/encoder.fra_eng.lstm2.model')
+    torch.save(attn_decoder1.state_dict(), 'models/attn_decoder.fra_eng.lstm2.model')
 
     debug('Evaluating models...')
     evaluate_randomly(test_pairs, encoder1, attn_decoder1, input_lang, output_lang)
