@@ -99,7 +99,7 @@ if __name__ == '__main__':
         device_idx, device_cap[0], device_cap[1]))
     
     if len(sys.argv) == 5:
-        num_tests, encoder_path, decoder_path, config_path = 
+        num_tests, encoder_path, decoder_path, config_path = \
             int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
     else:
         print('Usage: python evaluate.py [num tests] [encoder] [decoder] [config file]')

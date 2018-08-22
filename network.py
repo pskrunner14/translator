@@ -45,7 +45,7 @@ class EncoderRNN(nn.Module):
         output = embedded
         output, hidden = self.rnn(output, hidden)
         if self.bidirectional:
-            forward_output, backward_output = 
+            forward_output, backward_output = \
                 output[:, :, :self.hidden_size], output[:, :, self.hidden_size:]
             staggered_output = torch.cat((forward_output, backward_output))
             output = staggered_output
@@ -115,7 +115,7 @@ class AttnDecoderRNN(nn.Module):
         output = F.relu(output)
         output, hidden = self.rnn(output, hidden)
         if self.bidirectional:
-            forward_output, backward_output = 
+            forward_output, backward_output = \
                 output[:, :, :self.hidden_size], output[:, :, self.hidden_size:]
             staggered_output = torch.cat((forward_output, backward_output))
             output = F.log_softmax(self.out(staggered_output[0]), dim=1)
