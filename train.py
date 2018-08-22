@@ -76,8 +76,8 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer,
     
     return loss.item() / target_length
 
-def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000, 
-        save_every=10000, plot_every=100, lr=0.01, lr_step_divisor=3, lr_step_gamma=0.1):
+def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000, save_every=10000, 
+                plot_every=100, lr=0.01, lr_step_divisor=3, lr_step_gamma=0.1):
 
     start = time.time()
     
@@ -88,10 +88,13 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000,
     encoder_optimizer = optim.SGD(encoder.parameters(), lr=lr)
     decoder_optimizer = optim.SGD(decoder.parameters(), lr=lr)
 
-    encoder_lr_scheduler = StepLR(encoder_optimizer, step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
-    decoder_lr_scheduler = StepLR(decoder_optimizer, step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
+    encoder_lr_scheduler = StepLR(encoder_optimizer, 
+        step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
+    decoder_lr_scheduler = StepLR(decoder_optimizer, 
+        step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
     
-    training_pairs = [tensors_from_pair(random.choice(pairs), input_lang, output_lang) for i in range(epochs)]
+    training_pairs = [tensors_from_pair(random.choice(pairs), 
+        input_lang, output_lang) for i in range(epochs)]
     
     # using the F.log_softmax() in decoder 
     # so no need for cross entropy loss
@@ -124,8 +127,10 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000,
 
         if epoch % save_every == 0:
             debug('Saving models on Epoch {}'.format(epoch))
-            torch.save(encoder1.state_dict(), 'models/encoder.lstm2_bi.fra_eng_{}'.format(epoch))
-            torch.save(attn_decoder1.state_dict(), 'models/attn_decoder.lstm2_bi.fra_eng_{}'.format(epoch))
+            torch.save(encoder1.state_dict(), 
+                'models/encoder.lstm2_bi.fra_eng_{}'.format(epoch))
+            torch.save(attn_decoder1.state_dict(), 
+                'models/attn_decoder.lstm2_bi.fra_eng_{}'.format(epoch))
         
     show_plot(plot_losses)
 
@@ -147,7 +152,8 @@ if __name__ == '__main__':
         .format(str(device).upper(), torch.cuda.get_device_name(device_idx), 
         device_idx, device_cap[0], device_cap[1]))
 
-    input_lang, output_lang, train_pairs, test_pairs = prepare_data('eng', 'fra', True)
+    input_lang, output_lang, train_pairs, test_pairs = \
+        prepare_data('eng', 'fra', True)
     print(random.choice(train_pairs))
 
     debug('Saving input language, output language and testing data...')
@@ -158,8 +164,9 @@ if __name__ == '__main__':
         num_layers=int(config['rnn']['num_layers'])).to(device)
             
     attn_decoder1 = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, 
-        bidirectional=bool(int(config['rnn']['bidirectional'])), layer_type=config['rnn']['layer_type'], 
-        num_layers=int(config['rnn']['num_layers']), dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
+        bidirectional=bool(int(config['rnn']['bidirectional'])), 
+        layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers']), 
+        dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
 
     debug('Saving configuration...')
     with open('models/autoencoder.fra_eng.lstm2_bi.cfg', 'w') as config_file:
@@ -169,7 +176,8 @@ if __name__ == '__main__':
     train_epochs(encoder1, attn_decoder1, train_pairs, epochs=int(config['training']['epochs']), 
             print_every=int(config['training']['print_every']), save_every=int(config['training']['save_every']), 
             plot_every=int(config['training']['plot_every']), lr=float(config['training']['lr']),
-            lr_step_divisor=int(config['training']['lr_step_divisor']), lr_step_gamma=float(config['training']['lr_step_gamma']))
+            lr_step_divisor=int(config['training']['lr_step_divisor']), 
+            lr_step_gamma=float(config['training']['lr_step_gamma']))
 
     debug('Saving trained models...')
     torch.save(encoder1.state_dict(), 'models/encoder.fra_eng.lstm2_bi.model')

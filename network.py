@@ -18,7 +18,8 @@ Encoder RNN Model
 class EncoderRNN(nn.Module):
     
     def __init__(self, input_size, hidden_size, 
-        bidirectional=False, layer_type='gru', num_layers=1):
+                bidirectional=False, layer_type='gru', 
+                num_layers=1):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -66,8 +67,9 @@ Attention Decoder RNN Model
 """
 class AttnDecoderRNN(nn.Module):
     
-    def __init__(self, hidden_size, output_size, bidirectional=False, 
-        layer_type='gru', num_layers=1, dropout_p=0.1, max_length=MAX_LENGTH):
+    def __init__(self, hidden_size, output_size, 
+                bidirectional=False, layer_type='gru', num_layers=1, 
+                dropout_p=0.1, max_length=MAX_LENGTH):
         super(AttnDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.output_size = output_size
