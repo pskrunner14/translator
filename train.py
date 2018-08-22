@@ -85,8 +85,8 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000,
     print_loss_total = 0
     plot_loss_total = 0 
     
-    encoder_optimizer = optim.Adam(encoder.parameters(), lr=lr)
-    decoder_optimizer = optim.Adam(decoder.parameters(), lr=lr)
+    encoder_optimizer = optim.SGD(encoder.parameters(), lr=lr)
+    decoder_optimizer = optim.SGD(decoder.parameters(), lr=lr)
 
     encoder_lr_scheduler = StepLR(encoder_optimizer, step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
     decoder_lr_scheduler = StepLR(decoder_optimizer, step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)

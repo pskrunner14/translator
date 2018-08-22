@@ -26,7 +26,8 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang, max_length=MAX
         input_length = input_tensor.size()[0]
         
         encoder_hidden = encoder.init_hidden()
-        encoder_outputs = torch.zeros(max_length, encoder.hidden_size, device=get_torch_device())
+        encoder_outputs = torch.zeros(max_length, 
+            encoder.hidden_size, device=get_torch_device())
         
         for ei in range(input_length):
             encoder_output, encoder_hidden = encoder(input_tensor[ei], 
@@ -81,7 +82,8 @@ def showAttention(input_sentence, output_words, attentions):
 
 
 def evaluateAndShowAttention(input_sentence, encoder, decoder, input_lang, output_lang):
-    output_words, attentions = evaluate(encoder, decoder, input_sentence, input_lang, output_lang)
+    output_words, attentions = evaluate(encoder, decoder, 
+        input_sentence, input_lang, output_lang)
     print('input =', input_sentence)
     print('output =', ' '.join(output_words))
     showAttention(input_sentence, output_words, attentions)
@@ -93,10 +95,12 @@ if __name__ == '__main__':
     device_idx = torch.cuda.current_device()
     device_cap = torch.cuda.get_device_capability(device_idx)
     print('PyTorch: Using {} Device {}:{} with Compute Capability {}.{}'
-        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), device_idx, device_cap[0], device_cap[1]))
+        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), 
+        device_idx, device_cap[0], device_cap[1]))
     
     if len(sys.argv) == 5:
-        num_tests, encoder_path, decoder_path, config_path = int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
+        num_tests, encoder_path, decoder_path, config_path = 
+            int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
     else:
         print('Usage: python evaluate.py [num tests] [encoder] [decoder] [config file]')
         exit(0)
@@ -109,8 +113,9 @@ if __name__ == '__main__':
     encoder = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
             layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers'])).to(device)
             
-    decoder = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, layer_type=config['rnn']['layer_type'], 
-            num_layers=int(config['rnn']['num_layers']), dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
+    decoder = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, 
+            layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers']), 
+            dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
 
     encoder.load_state_dict(torch.load('models/{}'.format(encoder_path)))
     decoder.load_state_dict(torch.load('models/{}'.format(decoder_path)))

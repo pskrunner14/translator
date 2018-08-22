@@ -17,7 +17,8 @@ Encoder RNN Model
 """
 class EncoderRNN(nn.Module):
     
-    def __init__(self, input_size, hidden_size, bidirectional=False, layer_type='gru', num_layers=1):
+    def __init__(self, input_size, hidden_size, 
+        bidirectional=False, layer_type='gru', num_layers=1):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -30,9 +31,11 @@ class EncoderRNN(nn.Module):
 
         self.embedding = nn.Embedding(input_size, self.hidden_size)
         if self.layer_type == 'gru':
-            self.rnn = nn.GRU(self.hidden_size, self.hidden_size, self.num_layers, bidirectional=self.bidirectional)
+            self.rnn = nn.GRU(self.hidden_size, self.hidden_size, 
+                        self.num_layers, bidirectional=self.bidirectional)
         elif self.layer_type == 'lstm':
-            self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, self.num_layers, bidirectional=self.bidirectional)
+            self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, 
+                        self.num_layers, bidirectional=self.bidirectional)
         else:
             print('RNN type not available!')
             exit(0)
@@ -42,24 +45,29 @@ class EncoderRNN(nn.Module):
         output = embedded
         output, hidden = self.rnn(output, hidden)
         if self.bidirectional:
-            forward_output, backward_output = output[:, :, :self.hidden_size], output[:, :, self.hidden_size:]
+            forward_output, backward_output = 
+                output[:, :, :self.hidden_size], output[:, :, self.hidden_size:]
             staggered_output = torch.cat((forward_output, backward_output))
             output = staggered_output
         return output, hidden
     
     def init_hidden(self):
         if self.layer_type == 'gru':
-            return torch.zeros(self.num_layers * self.directions, 1, self.hidden_size, device=device)
+            return torch.zeros(self.num_layers * self.directions, 
+                    1, self.hidden_size, device=device)
         else:
-            return (torch.zeros(self.num_layers * self.directions, 1, self.hidden_size, device=device),
-                    torch.zeros(self.num_layers * self.directions, 1, self.hidden_size, device=device))
+            return (torch.zeros(self.num_layers * self.directions, 
+                    1, self.hidden_size, device=device),
+                    torch.zeros(self.num_layers * self.directions, 
+                    1, self.hidden_size, device=device))
 
 """
 Attention Decoder RNN Model
 """
 class AttnDecoderRNN(nn.Module):
     
-    def __init__(self, hidden_size, output_size, bidirectional=False, layer_type='gru', num_layers=1, dropout_p=0.1, max_length=MAX_LENGTH):
+    def __init__(self, hidden_size, output_size, bidirectional=False, 
+        layer_type='gru', num_layers=1, dropout_p=0.1, max_length=MAX_LENGTH):
         super(AttnDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.output_size = output_size
@@ -77,9 +85,11 @@ class AttnDecoderRNN(nn.Module):
         self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
         self.dropout = nn.Dropout(self.dropout_p)
         if self.layer_type == 'gru':
-            self.rnn = nn.GRU(self.hidden_size, self.hidden_size, self.num_layers, bidirectional=self.bidirectional)
+            self.rnn = nn.GRU(self.hidden_size, self.hidden_size, 
+                        self.num_layers, bidirectional=self.bidirectional)
         elif self.layer_type == 'lstm':
-            self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, self.num_layers, bidirectional=self.bidirectional)
+            self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, 
+                        self.num_layers, bidirectional=self.bidirectional)
         else:
             print('RNN type not available!')
             exit(0)
@@ -105,7 +115,8 @@ class AttnDecoderRNN(nn.Module):
         output = F.relu(output)
         output, hidden = self.rnn(output, hidden)
         if self.bidirectional:
-            forward_output, backward_output = output[:, :, :self.hidden_size], output[:, :, self.hidden_size:]
+            forward_output, backward_output = 
+                output[:, :, :self.hidden_size], output[:, :, self.hidden_size:]
             staggered_output = torch.cat((forward_output, backward_output))
             output = F.log_softmax(self.out(staggered_output[0]), dim=1)
         else:
@@ -114,7 +125,10 @@ class AttnDecoderRNN(nn.Module):
     
     def init_hidden(self):
         if self.layer_type == 'gru':
-            return torch.zeros(self.num_layers * self.directions, 1, self.hidden_size, device=device)
+            return torch.zeros(self.num_layers * self.directions, 
+                    1, self.hidden_size, device=device)
         else:
-            return (torch.zeros(self.num_layers * self.directions, 1, self.hidden_size, device=device),
-                    torch.zeros(self.num_layers * self.directions, 1, self.hidden_size, device=device))
+            return (torch.zeros(self.num_layers * self.directions, 
+                    1, self.hidden_size, device=device),
+                    torch.zeros(self.num_layers * self.directions, 
+                    1, self.hidden_size, device=device))
