@@ -163,9 +163,9 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=10000,
 
         if epoch % save_every == 0:
             logging.info('Saving models on Epoch {}'.format(epoch))
-            torch.save(encoder1, 'models/{}/{}_{}.encoder' 
+            torch.save(encoder, 'models/{}/{}_{}.encoder' 
                 .format(model_name, epoch, model_name))
-            torch.save(attn_decoder1, 'models/{}/{}_{}.decoder' 
+            torch.save(decoder, 'models/{}/{}_{}.decoder' 
                 .format(model_name, epoch, model_name))
         
     show_plot(plot_losses)
