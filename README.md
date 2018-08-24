@@ -1,6 +1,6 @@
 # Overview
 
-*Translator* is a Machine Translation Autoencoder built using Seq2Seq Recurrent Nets with Attention, PyTorch and TorchText.
+*Translator* is a Machine Translation Autoencoder built using Seq2Seq Recurrent Nets with Attention in PyTorch.
 
 ## Dataset
 
@@ -8,27 +8,29 @@ You can download compiled and selected translated sentence pairs from [ManyThing
 
 ## Getting Started
 
-In order to train the model and start translating, you will need to install the required python packages:
+In order to train the model and start translating, you'll need to install the required python packages:
 
 ```
 pip install -r requirements.txt
 ```
 
-Now you can open up a terminal and start training the model, you can tweak your model configuration however you like in the `config.cfg` file:
+Now you can open up a terminal and start training the model, tweak your model configuration however you like:
 
 ```
-python train.py
+python train.py --epochs 100000 --lr 0.001 --rnn-type lstm --num-layers 2 --hidden-size 256
 ```
 
-Once you're done training, run the evaluation script which will load the pretrained models you provide in the `models/` directory:
+Once you're done training, run the evaluation script which will load the pretrained models you provide in the `models/[model_name]` directory:
 
 ```
-python evaluate.py 30 encoder1.fra_eng.model attn_decoder1.fra_eng.model autoencoder1.fra_eng.cfg
+python evaluate.py --num-tests 30 --model-name lstm_2_bi_sgd
 ```
 
 Now you are all set up!
 
 ## Results
+
+Translations from French to English
 
 ```
 Input: elle est habituee a vivre seule .
