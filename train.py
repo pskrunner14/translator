@@ -167,12 +167,12 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=20,
                 .format(epoch, epochs, (epoch / epochs) * 100,
                 total_loss_avg, time_since(start, epoch / epochs)))
 
-        if iteration % save_every == 0:
-            logging.info('Saving models on epoch {}'.format(iteration))
+        if epoch % save_every == 0:
+            logging.info('Saving models on epoch {}'.format(epoch))
             torch.save(encoder, 'models/{}/{}_{}.encoder' 
-                .format(model_name, iteration, model_name))
+                .format(model_name, epoch, model_name))
             torch.save(decoder, 'models/{}/{}_{}.decoder' 
-                .format(model_name, iteration, model_name))
+                .format(model_name, epoch, model_name))
         
 def show_plot(points):
     plt.figure()
