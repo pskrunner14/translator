@@ -26,8 +26,8 @@ MAX_LENGTH = 15
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Training Configuration')
 
-    parser.add_argument('--epochs', type=int, default=200000, dest='epochs', 
-                        help='Number of epochs for training')
+    parser.add_argument('--iterations', type=int, default=200000, dest='n_iters', 
+                        help='Number of iterations for training')
 
     parser.add_argument('--lr', type=float, default=0.01, dest='lr',
                         help='Initial learning rate')
@@ -54,10 +54,10 @@ def parse_arguments():
                         help='Name for the model')
 
     parser.add_argument('--save-every', type=int, default=20000, dest='save_every',
-                        help='Epoch interval after which to save the model')
+                        help='Iteration interval after which to save the model')
 
     parser.add_argument('--print-every', type=int, default=1000, dest='print_every',
-                        help='Epoch interval after which to print training state')
+                        help='Iteration interval after which to print training state')
 
     parser.add_argument('--log-level', type=str, default='info', dest='log_level',
                         help='Logging level')
@@ -112,9 +112,9 @@ def train(input_tensor, target_tensor, encoder, decoder,
     
     return loss.item() / target_length
 
-def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=10000, print_every=1000, 
+def train_epochs(encoder, decoder, pairs, input_lang, output_lang, n_iters=10000, print_every=1000, 
                 save_every=10000, plot_every=100, lr=0.01, teacher_forcing_ratio=0.5,
-                lr_step_divisor=3, lr_step_gamma=0.1, model_name='autoencoder'):
+                lr_step_divisor=1, lr_step_gamma=1, model_name='autoencoder'):
 
     start = time.time()
     
@@ -126,17 +126,17 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=10000,
     decoder_optimizer = optim.SGD(decoder.parameters(), lr=lr)
 
     encoder_lr_scheduler = StepLR(encoder_optimizer, 
-        step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
+        step_size=n_iters // lr_step_divisor , gamma=lr_step_gamma)
     decoder_lr_scheduler = StepLR(decoder_optimizer, 
-        step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
+        step_size=n_iters // lr_step_divisor , gamma=lr_step_gamma)
     
     training_pairs = [tensors_from_pair(random.choice(pairs), 
-        input_lang, output_lang) for i in range(epochs)]
+        input_lang, output_lang) for i in range(n_iters)]
     
     loss_function = nn.NLLLoss()
     
-    for epoch in range(1, epochs + 1):
-        training_pair = training_pairs[epoch - 1]
+    for iteration in range(1, n_iters + 1):
+        training_pair = training_pairs[iteration - 1]
         input_tensor = training_pair[0]
         target_tensor = training_pair[1]
 
@@ -149,24 +149,24 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=10000,
         print_loss_total += loss
         plot_loss_total += loss
         
-        if epoch % print_every == 0:
+        if iteration % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
-            print('Epoch {}/{}: {:.2f}% | Loss: {:.2f} | {}'
-                 .format(epoch, epochs, (epoch / epochs) * 100,
-                  print_loss_avg, time_since(start, epoch / epochs)))
+            print('Iteration {}/{}: {:.2f}% | Loss: {:.2f} | {}'
+                 .format(iteration, n_iters, (iteration / n_iters) * 100,
+                  print_loss_avg, time_since(start, iteration / n_iters)))
         
-        if epoch % plot_every == 0:
+        if iteration % plot_every == 0:
             plot_loss_avg = plot_loss_total / plot_every
             plot_losses.append(plot_loss_avg)
             plot_loss_total = 0
 
-        if epoch % save_every == 0:
-            logging.info('Saving models on Epoch {}'.format(epoch))
+        if iteration % save_every == 0:
+            logging.info('Saving models on iteration {}'.format(iteration))
             torch.save(encoder, 'models/{}/{}_{}.encoder' 
-                .format(model_name, epoch, model_name))
+                .format(model_name, iteration, model_name))
             torch.save(decoder, 'models/{}/{}_{}.decoder' 
-                .format(model_name, epoch, model_name))
+                .format(model_name, iteration, model_name))
         
     show_plot(plot_losses)
 
@@ -192,22 +192,36 @@ def main():
     if not os.path.isdir('models/{}'.format(args.model_name)):
         os.mkdir('models/{}'.format(args.model_name))
 
-    logging.info('Saving input language, output language and testing data...')
-    save_pickle((input_lang, output_lang, test_pairs), 'models/{}/{}.data'
-        .format(args.model_name, args.model_name))
+        logging.info('Creating models...')
+        encoder1 = EncoderRNN(input_lang.n_words, args.hidden_size, 
+                    bidirectional=args.bidirectional, layer_type=args.rnn_type, 
+                    num_layers=args.num_layers).cuda()
+                
+        attn_decoder1 = AttnDecoderRNN(args.hidden_size, output_lang.n_words, 
+                        bidirectional=args.bidirectional, 
+                        layer_type=args.rnn_type, num_layers=args.num_layers, 
+                        dropout_p=args.dropout_p).cuda()
+    else:
+        files = os.listdir('models/{}'.format(args.model_name))
+        iters = [int(x.split('_')[0]) for x in files if '.encoder' in x or '.decoder' in x]
+        max_iter = max(iters)
+        for file in files:
+            if file.startswith(str(max_iter)):
+                if '.encoder' in file:
+                    encoder_path = file
+                elif '.decoder' in file:
+                    decoder_path = file
+        logging.info('Loading pretrained models...')
+        encoder1 = torch.load('models/{}/{}'.format(args.model_name, encoder_path))
+        attn_decoder1 = torch.load('models/{}/{}'.format(args.model_name, decoder_path))
 
-    encoder1 = EncoderRNN(input_lang.n_words, args.hidden_size, 
-                bidirectional=args.bidirectional, layer_type=args.rnn_type, 
-                num_layers=args.num_layers).cuda()
-            
-    attn_decoder1 = AttnDecoderRNN(args.hidden_size, output_lang.n_words, 
-                    bidirectional=args.bidirectional, 
-                    layer_type=args.rnn_type, num_layers=args.num_layers, 
-                    dropout_p=args.dropout_p).cuda()
+    logging.info('Saving input language, output language and testing data...')
+    save_pickle((input_lang, output_lang, train_pairs, test_pairs), 'models/{}/{}.data'
+        .format(args.model_name, args.model_name))
 
     logging.info('Training models...')
     train_epochs(encoder1, attn_decoder1, train_pairs, input_lang, output_lang, 
-            epochs=args.epochs, print_every=args.print_every, save_every=args.save_every, 
+            n_iters=args.n_iters, print_every=args.print_every, save_every=args.save_every, 
             lr=args.lr, teacher_forcing_ratio=args.teacher_forcing_ratio,
             model_name=args.model_name)
 
