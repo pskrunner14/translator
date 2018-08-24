@@ -37,7 +37,6 @@ class EncoderRNN(nn.Module):
     def forward(self, input_seq, hidden):
         embedded = self.embedding(input_seq).view(1, 1, -1)
         output = embedded
-        self.rnn.flatten_parameters()
         output, hidden = self.rnn(output, hidden)
         if self.bidirectional:
             forward_output, backward_output = \
@@ -109,7 +108,6 @@ class AttnDecoderRNN(nn.Module):
         output = self.attn_combine(output).unsqueeze(0)
         
         output = F.relu(output)
-        self.rnn.flatten_parameters()
         output, hidden = self.rnn(output, hidden)
         if self.bidirectional:
             forward_output, backward_output = \
