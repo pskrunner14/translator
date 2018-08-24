@@ -8,17 +8,13 @@ from io import open
 from random import shuffle
 
 import torch
-from configparser import ConfigParser
-
-config = ConfigParser()
-config.read('config.cfg')
 
 # import torchtext
 # fast_text = torchtext.vocab.FastText(language='en')
 
-SOS_TOKEN = int(config['model']['sos_token'])
-EOS_TOKEN = int(config['model']['eos_token'])
-MAX_LENGTH = int(config['model']['max_length'])
+SOS_TOKEN = 0
+EOS_TOKEN = 1
+MAX_LENGTH = 15
 
 eng_prefixes = (
     "i am ", "i m ",
@@ -29,10 +25,15 @@ eng_prefixes = (
     "they are", "they re "
 )
 
-def get_torch_device():
-    return torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-device = get_torch_device()
+def init_cuda():
+    '''Using CUDA Device'''
+    assert torch.cuda.is_available()
+    device = 'CUDA'
+    device_idx = torch.cuda.current_device()
+    device_cap = torch.cuda.get_device_capability(device_idx)
+    debug('PyTorch using {} device {}:{} with Compute Capability {}.{}'
+        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), 
+        device_idx, device_cap[0], device_cap[1]))
 
 def debug(message):
     print('\nDEBUG: {}\n'.format(message))
@@ -93,8 +94,8 @@ def read_langs(lang1, lang2, reverse=False):
 
 def filter_pair(p):
     return len(p[0].split(' ')) < MAX_LENGTH and \
-            len(p[1].split(' ')) < MAX_LENGTH and \
-            p[1].startswith(eng_prefixes)
+            len(p[1].split(' ')) < MAX_LENGTH #and \
+            #p[1].startswith(eng_prefixes)
 
 def filter_pairs(pairs):
     return [pair for pair in pairs if filter_pair(pair)]
@@ -116,7 +117,7 @@ def prepare_data(lang1, lang2, reverse=False):
     
     print(input_lang.name, input_lang.n_words)
     print(output_lang.name, output_lang.n_words)
-    return input_lang, output_lang, pairs[:-100], pairs[-100:]
+    return input_lang, output_lang, pairs[:-1000], pairs[-1000:]
 
 def indices_from_sentence(lang, sentence):
     return [lang.word_to_idx[word] for word in sentence.split(' ')]
@@ -124,7 +125,7 @@ def indices_from_sentence(lang, sentence):
 def tensor_from_sentence(lang, sentence):
     indices = indices_from_sentence(lang, sentence)
     indices.append(EOS_TOKEN)
-    return torch.tensor(indices, dtype=torch.long, device=device).view(-1, 1)
+    return torch.tensor(indices, dtype=torch.long, device=torch.device('cuda')).view(-1, 1)
 
 def tensors_from_pair(pair, input_lang, output_lang):
     input_tensor = tensor_from_sentence(input_lang, pair[0])

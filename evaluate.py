@@ -1,27 +1,38 @@
-import sys
+import os
 import random
 
 import torch
+import argparse
+import logging
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from configparser import ConfigParser
-
-from utils import get_torch_device, tensor_from_sentence, load_pickle
-from network import EncoderRNN, AttnDecoderRNN
+from utils import init_cuda, tensor_from_sentence, load_pickle
 
 plt.switch_backend('agg')
 
-config = ConfigParser()
-config.read('config.cfg')
+SOS_TOKEN = 0
+EOS_TOKEN = 1
+MAX_LENGTH = 15
 
-EOS_TOKEN = int(config['model']['eos_token'])
-SOS_TOKEN = int(config['model']['sos_token'])
-MAX_LENGTH = int(config['model']['max_length'])
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Evaluation Configuration')
+    
+    parser.add_argument('--num-tests', type=int, default=10, dest='num_tests',
+                        help='Number of evaluation tests')
 
+    parser.add_argument('--model-name', type=str, default='lstm3_bi_sgd', dest='model_name',
+                        help='Name for the model')
+
+    parser.add_argument('--log-level', type=str, default='info', dest='log_level',
+                        help='Logging level')
+    
+    return parser.parse_args()
 
 def evaluate(encoder, decoder, sentence, input_lang, output_lang, max_length=MAX_LENGTH):
+    
     with torch.no_grad():
+    
         input_tensor = tensor_from_sentence(input_lang, sentence)
         input_length = input_tensor.size()[0]
         
@@ -64,22 +75,18 @@ def evaluate_randomly(pairs, encoder, decoder, input_lang, output_lang, n=10):
         print('Predicted: {}\n'.format(output_sentence))
 
 def showAttention(input_sentence, output_words, attentions):
-    # Set up figure with colorbar
     fig = plt.figure()
     ax = fig.add_subplot(111)
     cax = ax.matshow(attentions.numpy(), cmap='bone')
     fig.colorbar(cax)
 
-    # Set up axes
     ax.set_xticklabels([''] + input_sentence.split(' ') + ['<EOS>'], rotation=90)
     ax.set_yticklabels([''] + output_words)
 
-    # Show label at every tick
     ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
     ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
 
     plt.show()
-
 
 def evaluateAndShowAttention(input_sentence, encoder, decoder, input_lang, output_lang):
     output_words, attentions = evaluate(encoder, decoder, 
@@ -87,37 +94,40 @@ def evaluateAndShowAttention(input_sentence, encoder, decoder, input_lang, outpu
     print('input =', input_sentence)
     print('output =', ' '.join(output_words))
     showAttention(input_sentence, output_words, attentions)
+
+def main():
+    init_cuda()
+
+    args = parse_arguments()
+
+    LOG_FORMAT = '%(levelname)s %(message)s'
+    logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, args.log_level.upper()))
+
+    model_dir = 'models/{}/'.format(args.model_name)
+
+    for file in os.listdir('models/{}'.format(args.model_name)):
+        file_name, file_extension = os.path.splitext(file)
+        if file_extension == '.encoder':
+            encoder_path = model_dir + file
+        elif file_extension == '.decoder':
+            decoder_path = model_dir + file
+        elif file_extension == '.pkl':
+            data_file = model_dir + file_name
+        else:
+            logging.warning('Unknown file type in model directory')
+
+    logging.info('Loading data...')
+    input_lang, output_lang, pairs = load_pickle(data_file)
+
+    logging.info('Loading models...')
+    encoder = torch.load(encoder_path)
+    decoder = torch.load(decoder_path)
+
+    logging.info('Evaluating models...')
+    evaluate_randomly(pairs, encoder, decoder, input_lang, output_lang, n=args.num_tests)
         
 if __name__ == '__main__':
-
-    '''Using CUDA Device'''
-    device = get_torch_device()
-    device_idx = torch.cuda.current_device()
-    device_cap = torch.cuda.get_device_capability(device_idx)
-    print('PyTorch: Using {} Device {}:{} with Compute Capability {}.{}'
-        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), 
-        device_idx, device_cap[0], device_cap[1]))
-    
-    if len(sys.argv) == 5:
-        num_tests, encoder_path, decoder_path, config_path = \
-            int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
-    else:
-        print('Usage: python evaluate.py [num tests] [encoder] [decoder] [config file]')
-        exit(0)
-
-    config = ConfigParser()
-    config.read('models/{}'.format(config_path))
-
-    input_lang, output_lang, pairs = load_pickle('models/autoencoder.fra_eng.lstm2_bi.data')
-    
-    encoder = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
-            layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers'])).to(device)
-            
-    decoder = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, 
-            layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers']), 
-            dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
-
-    encoder.load_state_dict(torch.load('models/{}'.format(encoder_path)))
-    decoder.load_state_dict(torch.load('models/{}'.format(decoder_path)))
-
-    evaluate_randomly(pairs, encoder, decoder, input_lang, output_lang, n=num_tests)
+    try:
+        main()
+    except KeyboardInterrupt as e:
+        print('EXIT')

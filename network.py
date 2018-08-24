@@ -1,16 +1,10 @@
+import logging
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import get_torch_device
-from configparser import ConfigParser
-
-config = ConfigParser()
-config.read('config.cfg')
-
-MAX_LENGTH = int(config['model']['max_length'])
-
-device = get_torch_device()
+MAX_LENGTH = 15
 
 """
 Encoder RNN Model
@@ -38,8 +32,7 @@ class EncoderRNN(nn.Module):
             self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, 
                         self.num_layers, bidirectional=self.bidirectional)
         else:
-            print('RNN type not available!')
-            exit(0)
+            logging.error('RNN type not available!')
 
     def forward(self, input_seq, hidden):
         embedded = self.embedding(input_seq).view(1, 1, -1)
@@ -55,12 +48,12 @@ class EncoderRNN(nn.Module):
     def init_hidden(self):
         if self.layer_type == 'gru':
             return torch.zeros(self.num_layers * self.directions, 
-                    1, self.hidden_size, device=device)
+                    1, self.hidden_size, device=torch.device('cuda'))
         else:
             return (torch.zeros(self.num_layers * self.directions, 
-                    1, self.hidden_size, device=device),
+                    1, self.hidden_size, device=torch.device('cuda')),
                     torch.zeros(self.num_layers * self.directions, 
-                    1, self.hidden_size, device=device))
+                    1, self.hidden_size, device=torch.device('cuda')))
 
 """
 Attention Decoder RNN Model
@@ -93,8 +86,8 @@ class AttnDecoderRNN(nn.Module):
             self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, 
                         self.num_layers, bidirectional=self.bidirectional)
         else:
-            print('RNN type not available!')
-            exit(0)
+            logging.error('RNN type not available!')
+            
         self.out = nn.Linear(self.hidden_size, self.output_size)
         
     def forward(self, input_seq, hidden, encoder_outputs):
@@ -128,9 +121,9 @@ class AttnDecoderRNN(nn.Module):
     def init_hidden(self):
         if self.layer_type == 'gru':
             return torch.zeros(self.num_layers * self.directions, 
-                    1, self.hidden_size, device=device)
+                    1, self.hidden_size, device=torch.device('cuda'))
         else:
             return (torch.zeros(self.num_layers * self.directions, 
-                    1, self.hidden_size, device=device),
+                    1, self.hidden_size, device=torch.device('cuda')),
                     torch.zeros(self.num_layers * self.directions, 
-                    1, self.hidden_size, device=device))
+                    1, self.hidden_size, device=torch.device('cuda')))

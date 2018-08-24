@@ -1,45 +1,83 @@
+import os
 import time
 import random
 
+import argparse
+import logging
+
 import torch
 import torch.nn as nn
-
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
-from configparser import ConfigParser
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
-from utils import get_torch_device, debug, prepare_data, tensors_from_pair, time_since, save_pickle
+from utils import init_cuda, prepare_data, tensors_from_pair, time_since, save_pickle
 from network import EncoderRNN, AttnDecoderRNN
 from evaluate import evaluate_randomly
 
 plt.switch_backend('agg')
 
-config = ConfigParser()
-config.read('config.cfg')
+SOS_TOKEN = 0
+EOS_TOKEN = 1
+MAX_LENGTH = 15
 
-debug('Loaded configuration from config.cfg')
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Training Configuration')
 
-EOS_TOKEN = int(config['model']['eos_token'])
-SOS_TOKEN = int(config['model']['sos_token'])
-MAX_LENGTH = int(config['model']['max_length'])
-TEACHER_FORCING_RATIO = float(config['model']['teacher_forcing_ratio'])
+    parser.add_argument('--epochs', type=int, default=200000, dest='epochs', 
+                        help='Number of epochs for training')
 
-def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, 
-        decoder_optimizer, loss_function, max_length=MAX_LENGTH):
+    parser.add_argument('--lr', type=float, default=0.01, dest='lr',
+                        help='Initial learning rate')
+
+    parser.add_argument('--rnn-type', type=str, default='lstm', dest='rnn_type',
+                        help='Type of the RNN layer')
+    
+    parser.add_argument('--num-layers', type=int, default=2, dest='num_layers',
+                        help='Number of layers in the RNN models')
+
+    parser.add_argument('--hidden-size', type=int, default=256, dest='hidden_size',
+                        help='Number of hidden units in each layer of RNN')
+
+    parser.add_argument('--bidirectional', type=bool, default=True, dest='bidirectional',
+                        help='Bidirectional RNN')
+
+    parser.add_argument('--dropout-rate', type=float, default=0.1, dest='dropout_p',
+                        help='Dropout rate for the decoder RNN')
+    
+    parser.add_argument('--teacher-forcing-ratio', type=float, default=0.5, dest='teacher_forcing_ratio',
+                        help='Probability of teacher forcing the training of the model')
+    
+    parser.add_argument('--model-name', type=str, default='lstm_2_bi_sgd', dest='model_name',
+                        help='Name for the model')
+
+    parser.add_argument('--save-every', type=int, default=20000, dest='save_every',
+                        help='Epoch interval after which to save the model')
+
+    parser.add_argument('--print-every', type=int, default=1000, dest='print_every',
+                        help='Epoch interval after which to print training state')
+
+    parser.add_argument('--log-level', type=str, default='info', dest='log_level',
+                        help='Logging level')
+    
+    return parser.parse_args()
+
+def train(input_tensor, target_tensor, encoder, decoder, 
+        encoder_optimizer, decoder_optimizer, loss_function, 
+        teacher_forcing_ratio=0.5, max_length=MAX_LENGTH):
     
     encoder_hidden = encoder.init_hidden()
     
     encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
-    
+
     input_length = input_tensor.size(0)
     target_length = target_tensor.size(0)
     
     encoder_outputs = torch.zeros(max_length, 
-        encoder.hidden_size, device=device)
+        encoder.hidden_size, device=torch.device('cuda'))
     
     loss = 0
     
@@ -47,23 +85,21 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer,
         encoder_output, encoder_hidden = encoder(input_tensor[ei], encoder_hidden)
         encoder_outputs[ei] = encoder_output[0]
         
-    decoder_input = torch.tensor([[SOS_TOKEN]], device=device)
+    decoder_input = torch.tensor([[SOS_TOKEN]], device=torch.device('cuda'))
     decoder_hidden = encoder_hidden
     
-    use_teacher_forcing = True if random.random() < TEACHER_FORCING_RATIO else False
+    use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
     
     if use_teacher_forcing:
-        # Teacher forcing: Feed the target as the next input
         for di in range(target_length):
             decoder_output, decoder_hidden, _ = decoder(decoder_input, decoder_hidden, encoder_outputs)
             loss += loss_function(decoder_output, target_tensor[di])
-            decoder_input = target_tensor[di] # Teacher forcing
+            decoder_input = target_tensor[di]
     else:
-        # Without teacher forcing: use its own predictions as the next input
         for di in range(target_length):
             decoder_output, decoder_hidden, _ = decoder(decoder_input, decoder_hidden, encoder_outputs)
             _, topi = decoder_output.topk(1)
-            decoder_input = topi.squeeze().detach() # detach from history as input
+            decoder_input = topi.squeeze().detach()
             
             loss += loss_function(decoder_output, target_tensor[di])
             if decoder_input.item() == EOS_TOKEN:
@@ -76,8 +112,9 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer,
     
     return loss.item() / target_length
 
-def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000, save_every=10000, 
-                plot_every=100, lr=0.01, lr_step_divisor=3, lr_step_gamma=0.1):
+def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=10000, print_every=1000, 
+                save_every=10000, plot_every=100, lr=0.01, teacher_forcing_ratio=0.5,
+                lr_step_divisor=3, lr_step_gamma=0.1, model_name='autoencoder'):
 
     start = time.time()
     
@@ -96,8 +133,6 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000, save_e
     training_pairs = [tensors_from_pair(random.choice(pairs), 
         input_lang, output_lang) for i in range(epochs)]
     
-    # using the F.log_softmax() in decoder 
-    # so no need for cross entropy loss
     loss_function = nn.NLLLoss()
     
     for epoch in range(1, epochs + 1):
@@ -109,7 +144,8 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000, save_e
         decoder_lr_scheduler.step()
         
         loss = train(input_tensor, target_tensor, encoder, decoder, 
-                     encoder_optimizer, decoder_optimizer, loss_function)
+                     encoder_optimizer, decoder_optimizer, loss_function,
+                     teacher_forcing_ratio=teacher_forcing_ratio)
         print_loss_total += loss
         plot_loss_total += loss
         
@@ -126,11 +162,11 @@ def train_epochs(encoder, decoder, pairs, epochs=10000, print_every=1000, save_e
             plot_loss_total = 0
 
         if epoch % save_every == 0:
-            debug('Saving models on Epoch {}'.format(epoch))
-            torch.save(encoder1.state_dict(), 
-                'models/encoder.lstm2_bi.fra_eng_{}'.format(epoch))
-            torch.save(attn_decoder1.state_dict(), 
-                'models/attn_decoder.lstm2_bi.fra_eng_{}'.format(epoch))
+            logging.info('Saving models on Epoch {}'.format(epoch))
+            torch.save(encoder1, 'models/{}/fra_eng.{}_{}.encoder' 
+                .format(model_name, epoch, model_name))
+            torch.save(attn_decoder1, 'models/{}/fra_eng.{}_{}.decoder' 
+                .format(model_name, epoch, model_name))
         
     show_plot(plot_losses)
 
@@ -141,47 +177,51 @@ def show_plot(points):
     ax.yaxis.set_major_locator(loc)
     plt.plot(points)
 
-    
-if __name__ == '__main__':
+def main():
+    args = parse_arguments()
 
-    '''Using CUDA Device'''
-    device = get_torch_device()
-    device_idx = torch.cuda.current_device()
-    device_cap = torch.cuda.get_device_capability(device_idx)
-    debug('PyTorch using {} device {}:{} with Compute Capability {}.{}'
-        .format(str(device).upper(), torch.cuda.get_device_name(device_idx), 
-        device_idx, device_cap[0], device_cap[1]))
+    LOG_FORMAT = '%(levelname)s %(message)s'
+    logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, args.log_level.upper()))
+
+    init_cuda()
 
     input_lang, output_lang, train_pairs, test_pairs = \
         prepare_data('eng', 'fra', True)
     print(random.choice(train_pairs))
 
-    debug('Saving input language, output language and testing data...')
-    save_pickle((input_lang, output_lang, test_pairs), 'models/autoencoder.fra_eng.lstm2_bi.data')
+    if not os.path.isdir('models/{}'.format(args.model_name)):
+        os.mkdir('models/{}'.format(args.model_name))
 
-    encoder1 = EncoderRNN(input_lang.n_words, int(config['rnn']['hidden_size']), 
-        bidirectional=bool(int(config['rnn']['bidirectional'])), layer_type=config['rnn']['layer_type'], 
-        num_layers=int(config['rnn']['num_layers'])).to(device)
+    logging.info('Saving input language, output language and testing data...')
+    save_pickle((input_lang, output_lang, test_pairs), 'models/{}/fra_eng.{}.data'
+        .format(args.model_name, args.model_name))
+
+    encoder1 = EncoderRNN(input_lang.n_words, args.hidden_size, 
+                bidirectional=args.bidirectional, layer_type=args.rnn_type, 
+                num_layers=args.num_layers).cuda()
             
-    attn_decoder1 = AttnDecoderRNN(int(config['rnn']['hidden_size']), output_lang.n_words, 
-        bidirectional=bool(int(config['rnn']['bidirectional'])), 
-        layer_type=config['rnn']['layer_type'], num_layers=int(config['rnn']['num_layers']), 
-        dropout_p=float(config['rnn']['decoder_dropout'])).to(device)
+    attn_decoder1 = AttnDecoderRNN(args.hidden_size, output_lang.n_words, 
+                    bidirectional=args.bidirectional, 
+                    layer_type=args.rnn_type, num_layers=args.num_layers, 
+                    dropout_p=args.dropout_p).cuda()
 
-    debug('Saving configuration...')
-    with open('models/autoencoder.fra_eng.lstm2_bi.cfg', 'w') as config_file:
-        config.write(config_file)
+    logging.info('Training models...')
+    train_epochs(encoder1, attn_decoder1, train_pairs, input_lang, output_lang, 
+            epochs=args.epochs, print_every=args.print_every, save_every=args.save_every, 
+            lr=args.lr, teacher_forcing_ratio=args.teacher_forcing_ratio,
+            model_name=args.model_name)
 
-    debug('Training models...')
-    train_epochs(encoder1, attn_decoder1, train_pairs, epochs=int(config['training']['epochs']), 
-            print_every=int(config['training']['print_every']), save_every=int(config['training']['save_every']), 
-            plot_every=int(config['training']['plot_every']), lr=float(config['training']['lr']),
-            lr_step_divisor=int(config['training']['lr_step_divisor']), 
-            lr_step_gamma=float(config['training']['lr_step_gamma']))
+    logging.info('Saving trained models...')
+    torch.save(encoder1, 'models/{}/fra_eng.{}.encoder'
+        .format(args.model_name, args.model_name))
+    torch.save(attn_decoder1, 'models/{}/fra_eng.{}.decoder'
+        .format(args.model_name, args.model_name))
 
-    debug('Saving trained models...')
-    torch.save(encoder1.state_dict(), 'models/encoder.fra_eng.lstm2_bi.model')
-    torch.save(attn_decoder1.state_dict(), 'models/attn_decoder.fra_eng.lstm2_bi.model')
-
-    debug('Evaluating models...')
+    logging.info('Evaluating models...')
     evaluate_randomly(test_pairs, encoder1, attn_decoder1, input_lang, output_lang)
+    
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt as e:
+        print('EXIT')
