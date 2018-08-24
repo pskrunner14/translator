@@ -6,7 +6,7 @@ import argparse
 import logging
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
 
@@ -50,7 +50,7 @@ def parse_arguments():
     parser.add_argument('--teacher-forcing-ratio', type=float, default=0.5, dest='teacher_forcing_ratio',
                         help='Probability of teacher forcing the training of the model')
     
-    parser.add_argument('--model-name', type=str, default='lstm_2_bi_sgd', dest='model_name',
+    parser.add_argument('--model-name', type=str, default='eng_deu.lstm_2_bi_sgd', dest='model_name',
                         help='Name for the model')
 
     parser.add_argument('--save-every', type=int, default=20000, dest='save_every',
@@ -163,9 +163,9 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=10000,
 
         if epoch % save_every == 0:
             logging.info('Saving models on Epoch {}'.format(epoch))
-            torch.save(encoder1, 'models/{}/fra_eng.{}_{}.encoder' 
+            torch.save(encoder1, 'models/{}/{}_{}.encoder' 
                 .format(model_name, epoch, model_name))
-            torch.save(attn_decoder1, 'models/{}/fra_eng.{}_{}.decoder' 
+            torch.save(attn_decoder1, 'models/{}/{}_{}.decoder' 
                 .format(model_name, epoch, model_name))
         
     show_plot(plot_losses)
@@ -186,14 +186,14 @@ def main():
     init_cuda()
 
     input_lang, output_lang, train_pairs, test_pairs = \
-        prepare_data('eng', 'fra', True)
+        prepare_data('eng', 'deu', True)
     print(random.choice(train_pairs))
 
     if not os.path.isdir('models/{}'.format(args.model_name)):
         os.mkdir('models/{}'.format(args.model_name))
 
     logging.info('Saving input language, output language and testing data...')
-    save_pickle((input_lang, output_lang, test_pairs), 'models/{}/fra_eng.{}.data'
+    save_pickle((input_lang, output_lang, test_pairs), 'models/{}/{}.data'
         .format(args.model_name, args.model_name))
 
     encoder1 = EncoderRNN(input_lang.n_words, args.hidden_size, 
@@ -212,9 +212,9 @@ def main():
             model_name=args.model_name)
 
     logging.info('Saving trained models...')
-    torch.save(encoder1, 'models/{}/fra_eng.{}.encoder'
+    torch.save(encoder1, 'models/{}/{}.encoder'
         .format(args.model_name, args.model_name))
-    torch.save(attn_decoder1, 'models/{}/fra_eng.{}.decoder'
+    torch.save(attn_decoder1, 'models/{}/{}.decoder'
         .format(args.model_name, args.model_name))
 
     logging.info('Evaluating models...')

@@ -113,9 +113,8 @@ class AttnDecoderRNN(nn.Module):
             forward_output, backward_output = \
                 output[:, :, :self.hidden_size], output[:, :, self.hidden_size:]
             staggered_output = torch.cat((forward_output, backward_output))
-            output = F.log_softmax(self.out(staggered_output[0]), dim=1)
-        else:
-            output = F.log_softmax(self.out(output[0]), dim=1)
+            output = staggered_output
+        output = F.log_softmax(self.out(output[0]), dim=1)
         return output, hidden, attn_weights
     
     def init_hidden(self):
