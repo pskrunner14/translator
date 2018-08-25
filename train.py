@@ -198,11 +198,11 @@ def main():
 
         logging.info('Creating models...')
         encoder1 = EncoderRNN(input_lang.n_words, args.hidden_size, 
-                    bidirectional=args.bidirectional, layer_type=args.rnn_type, 
-                    num_layers=args.num_layers).cuda()
+                    batch_size=args.batch_size, bidirectional=args.bidirectional, 
+                    layer_type=args.rnn_type, num_layers=args.num_layers).cuda()
                 
         attn_decoder1 = AttnDecoderRNN(args.hidden_size, output_lang.n_words, 
-                        bidirectional=args.bidirectional, 
+                        batch_size=args.batch_size, bidirectional=args.bidirectional, 
                         layer_type=args.rnn_type, num_layers=args.num_layers, 
                         dropout_p=args.dropout_p).cuda()
     else:
