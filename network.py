@@ -6,6 +6,8 @@ import torch.nn.functional as F
 
 MAX_LENGTH = 15
 
+# TODO (1) Implement batch encodings and decodings
+
 """
 Encoder RNN Model
 """
