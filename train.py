@@ -97,12 +97,14 @@ def train(training_tensors, encoder, decoder,
         
         if use_teacher_forcing:
             for di in range(target_length):
-                decoder_output, decoder_hidden, _ = decoder(decoder_input, decoder_hidden, encoder_outputs)
+                decoder_output, decoder_hidden, _ = decoder(decoder_input, 
+                                                    decoder_hidden, encoder_outputs)
                 loss += loss_function(decoder_output, target_tensor[di])
                 decoder_input = target_tensor[di]
         else:
             for di in range(target_length):
-                decoder_output, decoder_hidden, _ = decoder(decoder_input, decoder_hidden, encoder_outputs)
+                decoder_output, decoder_hidden, _ = decoder(decoder_input, 
+                                                    decoder_hidden, encoder_outputs)
                 _, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze().detach()
                 
@@ -148,10 +150,10 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=20,
             
             if i + batch_size <= len(pairs):
                 training_tensors = [tensors_from_pair(pair, input_lang, 
-                                    output_lang) for pair in pairs[i: i + batch_size]]
+                                output_lang) for pair in pairs[i: i + batch_size]]
             else:
                 training_tensors = [tensors_from_pair(pair, input_lang, 
-                                    output_lang) for pair in pairs[i: ]]
+                                output_lang) for pair in pairs[i: ]]
             
             loss = train(training_tensors, encoder, decoder, 
                         encoder_optimizer, decoder_optimizer, loss_function,
