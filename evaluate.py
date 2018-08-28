@@ -3,11 +3,13 @@ import random
 
 import torch
 import argparse
+import configparser
 import logging
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
 from utils import init_cuda, tensor_from_sentence, load_pickle
+from network import EncoderRNN, AttnDecoderRNN
 
 plt.switch_backend('agg')
 
@@ -38,14 +40,14 @@ def evaluate(encoder, decoder, sentence, input_lang, output_lang, max_length=MAX
         
         encoder_hidden = encoder.init_hidden()
         encoder_outputs = torch.zeros(max_length, 
-            encoder.hidden_size, device=get_torch_device())
+            encoder.hidden_size, device=torch.device('cuda'))
         
         for ei in range(input_length):
             encoder_output, encoder_hidden = encoder(input_tensor[ei], 
                 encoder_hidden)
             encoder_outputs[ei] += encoder_output[0, 0]
             
-        decoder_input = torch.tensor([[SOS_TOKEN]], device=get_torch_device())
+        decoder_input = torch.tensor([[SOS_TOKEN]], device=torch.device('cuda'))
         decoder_hidden = encoder_hidden
         
         decoded_words = []
@@ -95,36 +97,57 @@ def evaluateAndShowAttention(input_sentence, encoder, decoder, input_lang, outpu
     print('output =', ' '.join(output_words))
     showAttention(input_sentence, output_words, attentions)
 
+def create_models(config, in_words, out_words):
+    logging.info('Creating models...')
+    encoder = EncoderRNN(in_words, int(config['hidden_size']), 
+                        num_layers=int(config['num_layers'])).cuda()
+                
+    decoder = AttnDecoderRNN(int(config['hidden_size']), out_words,
+                            num_layers=int(config['num_layers']), 
+                            dropout_p=float(config['dropout_p'])).cuda()
+    return encoder, decoder
+
 def main():
     init_cuda()
 
     args = parse_arguments()
+    config = configparser.ConfigParser()
 
     LOG_FORMAT = '%(levelname)s %(message)s'
     logging.basicConfig(format=LOG_FORMAT, level=getattr(logging, args.log_level.upper()))
 
-    model_dir = 'models/{}/'.format(args.model_name)
+    try:
+        files = os.listdir('models/{}'.format(args.model_name))
 
-    for file in os.listdir('models/{}'.format(args.model_name)):
-        file_name, file_extension = os.path.splitext(file)
-        if file_extension == '.encoder':
-            encoder_path = model_dir + file
-        elif file_extension == '.decoder':
-            decoder_path = model_dir + file
-        elif file_extension == '.pkl':
-            data_file = model_dir + file_name
-        else:
-            logging.warning('Unknown file type in model directory')
+        logging.info('Reading configuration...')
+        config_file = 'models/{}/{}'.format(args.model_name, 
+            list(fileter(lambda x: '.cfg' in x, files))[0])
+        config.read(config_file)
 
-    logging.info('Loading data...')
-    input_lang, output_lang, pairs = load_pickle(data_file)
+        logging.info('Loading data...')
+        data_file = 'models/{}/{}'.format(args.model_name, 
+            list(filter(lambda x: '.data.pkl' in x, files))[0][:-4])
+        input_lang, output_lang, _, test_pairs = load_pickle(data_file)
 
-    logging.info('Loading models...')
-    encoder = torch.load(encoder_path)
-    decoder = torch.load(decoder_path)
+        logging.info('Loading pretrained checkpoint models...')
+
+        encoder_path = 'models/{}/{}'.format(args.model_name, 
+            list(filter(lambda x: '.encoder' in x, files))[0])
+        decoder_path = 'models/{}/{}'.format(args.model_name, 
+            list(fileter(lambda x: '.decoder' in x, files))[0])
+
+        encoder, decoder = create_models(config['rnn'], input_lang.n_words, 
+                                        output_lang.n_words)
+        encoder.load_state_dict(torch.load(encoder_path))
+        decoder.load_state_dict(torch.load(decoder_path))
+
+    except Exception as e:
+        logging.debug(str(e))
+        logging.critical('Files critical for evaluating not found! Please retrain the model.')
+        exit(0)
 
     logging.info('Evaluating models...')
-    evaluate_randomly(pairs, encoder, decoder, input_lang, output_lang, n=args.num_tests)
+    evaluate_randomly(test_pairs, encoder, decoder, input_lang, output_lang, n=args.num_tests)
         
 if __name__ == '__main__':
     try:
