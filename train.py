@@ -34,7 +34,7 @@ def parse_arguments():
     parser.add_argument('--batch-size', type=int, default=64, dest='batch_size', 
                         help='Batch size for one epoch in training')
 
-    parser.add_argument('--lr', type=float, default=0.002, dest='lr',
+    parser.add_argument('--lr', type=float, default=0.001, dest='lr',
                         help='Initial learning rate')
     
     parser.add_argument('--num-layers', type=int, default=2, dest='num_layers',
@@ -119,8 +119,8 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=20,
 
     start = time.time()
     
-    encoder_optimizer = optim.Adamax(encoder.parameters(), lr=lr)
-    decoder_optimizer = optim.Adamax(decoder.parameters(), lr=lr)
+    encoder_optimizer = optim.Adam(encoder.parameters(), lr=lr)
+    decoder_optimizer = optim.Adam(decoder.parameters(), lr=lr)
 
     encoder_lr_scheduler = StepLR(encoder_optimizer, 
         step_size=epochs // lr_step_divisor , gamma=lr_step_gamma)
