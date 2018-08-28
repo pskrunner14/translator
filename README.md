@@ -112,37 +112,37 @@ Predicted: i m glad to finally meet you . <EOS>
 Input: je suis la pour te proteger .
 Target: i m here to protect you .
 Predicted: i m here to protect you . <EOS>
-                                                                                                   
+
 Input: il est toujours en train de se plaindre .
 Target: he is constantly complaining .
 Predicted: he is always dreaming . <EOS>
 
 Input: ce ne sont pas mes regles .
 Target: they re not my rules .
-Predicted: they re not my . <EOS>                                                                  
-                                                                                                   
-Input: je suis desireux de t aider .                                                               
-Target: i am willing to help you .                                                                 
-Predicted: i am willing to help you . <EOS>                                                        
-                                                                                                   
-Input: je suis content de ne pas etre tom .                                                        
-Target: i m glad i m not tom .                                                                     
-Predicted: i m happy i not tom . <EOS>                                                
-                                                                                                           
-Input: vous etes la doyenne .                                                                      
-Target: you re the oldest .                                                                        
-Predicted: you re the oldest . <EOS>                                                               
-                                                                                                   
-Input: vous etes trop jeunes pour voyager seuls .                                                  
-Target: you are too young to travel alone .                                                        
-Predicted: you re too young to travel alone . <EOS>                                                
-                                                                                                   
-Input: je suis tres desorientee .                                                                  
-Target: i m all confused .                                                                         
-Predicted: i m very lonely . <EOS>                                                                 
-                                                                                                   
-Input: je suis ton jules n est ce pas ?                                                            
-Target: i m your boyfriend aren t i ?                                                              
+Predicted: they re not my . <EOS>
+
+Input: je suis desireux de t aider .
+Target: i am willing to help you .
+Predicted: i am willing to help you . <EOS>
+
+Input: je suis content de ne pas etre tom .
+Target: i m glad i m not tom .
+Predicted: i m happy i not tom . <EOS>
+
+Input: vous etes la doyenne .
+Target: you re the oldest .
+Predicted: you re the oldest . <EOS>
+
+Input: vous etes trop jeunes pour voyager seuls .
+Target: you are too young to travel alone .
+Predicted: you re too young to travel alone . <EOS>
+
+Input: je suis tres desorientee .
+Target: i m all confused .         
+Predicted: i m very lonely . <EOS> 
+
+Input: je suis ton jules n est ce pas ?
+Target: i m your boyfriend aren t i ?
 Predicted: i m the one aren t i ? <EOS>
 ```
 
