@@ -30,6 +30,46 @@ Now you are all set up!
 
 ## Results
 
+Translations from German to English
+
+```
+Input: ich bin sehr dankbar fur ihre hilfe .
+Target: i m very grateful for your help .
+Predicted: i m very grateful for your help . <EOS>
+
+Input: ich werde dich zu tom bringen .
+Target: i m going to take you to tom .
+Predicted: i m going to get tom to you . <EOS>
+
+Input: du bist neu hier oder ?
+Target: you re new here aren t you ?
+Predicted: you re new here aren t you ? <EOS>
+
+Input: wir sitzen in der falle !
+Target: we re trapped !
+Predicted: we re in the the water . <EOS>
+
+Input: sie ist sehr gelenkig .
+Target: she s double jointed .
+Predicted: she s very beautiful . <EOS>
+
+Input: ich werde ihre kochkunste vermissen .
+Target: i m going to miss your cooking .
+Predicted: i m going to miss your cooking . <EOS>
+
+Input: ich freue mich darauf dich in deinem hochzeitskleid zu sehen .
+Target: i m looking forward to seeing you in your wedding dress .
+Predicted: i m looking forward to seeing you in this . <EOS>
+
+Input: ich bin zu einer sitzung hier .
+Target: i m here for a meeting .
+Predicted: i m here to your party . <EOS>
+
+Input: du bist furchtlos .
+Target: you re fearless .
+Predicted: you re fair . <EOS>
+```
+
 Translations from French to English
 
 ```
