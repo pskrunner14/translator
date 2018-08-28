@@ -10,20 +10,21 @@ MAX_LENGTH = 15
 Encoder RNN Model
 """
 class EncoderRNN(nn.Module):
-    
-    def __init__(self, input_size, hidden_size, num_layers=1):
+	
+    def __init__(self, input_size, hidden_size, batch_size=32, num_layers=1):
         super(EncoderRNN, self).__init__()
         
         # Model Config
         self.hidden_size = hidden_size
+        self.batch_size = batch_size
         self.num_layers = num_layers
 
         # Embedding Layer
         self.embedding = nn.Embedding(input_size, self.hidden_size)
         
         # LSTM Layers
-        self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, 
-                            self.num_layers, bidirectional=True)
+        self.rnn = nn.LSTM(self.hidden_size, self.hidden_size, self.num_layers, 
+						   bidirectional=True, batch_first=True)
 
     def forward(self, input_seq, hidden):
         embedded = self.embedding(input_seq).view(1, 1, -1)
@@ -35,9 +36,9 @@ class EncoderRNN(nn.Module):
         return output, hidden
     
     def init_hidden(self):
-        return (torch.zeros(self.num_layers * 2, 1, 
+        return (torch.zeros(self.num_layers * 2, self.batch_size, 
                 self.hidden_size, device=torch.device('cuda')),
-                torch.zeros(self.num_layers * 2, 1, 
+                torch.zeros(self.num_layers * 2, self.batch_size, 
                 self.hidden_size, device=torch.device('cuda')))
 
 """
@@ -46,12 +47,13 @@ Attention Decoder RNN Model
 class AttnDecoderRNN(nn.Module):
     
     def __init__(self, hidden_size, output_size, num_layers=1, 
-                dropout_p=0.1, max_length=MAX_LENGTH):
+				 batch_size=32, dropout_p=0.1, max_length=MAX_LENGTH):
         super(AttnDecoderRNN, self).__init__()
         
         # Model Config
         self.hidden_size = hidden_size
         self.output_size = output_size
+        self.batch_size = batch_size
         self.dropout_p = dropout_p
         self.max_length = max_length
         self.num_layers = num_layers
@@ -94,7 +96,7 @@ class AttnDecoderRNN(nn.Module):
         return output, hidden, attn_weights
     
     def init_hidden(self):
-        return (torch.zeros(self.num_layers * 2, 1, 
+        return (torch.zeros(self.num_layers * 2, self.batch_size, 
                 self.hidden_size, device=torch.device('cuda')),
-                torch.zeros(self.num_layers * 2, 1, 
+                torch.zeros(self.num_layers * 2, self.batch_size, 
                 self.hidden_size, device=torch.device('cuda')))
