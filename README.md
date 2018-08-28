@@ -17,7 +17,7 @@ pip install -r requirements.txt
 Now you can open up a terminal and start training the model, tweak your model configuration however you like:
 
 ```
-python train.py --epochs 100000 --lr 0.001 --rnn-type lstm --num-layers 2 --hidden-size 256
+python train.py --epochs 20 --batch-size 64 --lr 0.001 --num-layers 2 --hidden-size 512
 ```
 
 Once you're done training, run the evaluation script which will load the pretrained models you provide in the `models/[model_name]` directory:
