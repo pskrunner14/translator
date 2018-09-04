@@ -1,5 +1,7 @@
 # Overview
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/9020f72ab88b4f05b2082b94e7efe6de)](https://app.codacy.com/app/pskrunner14/translator?utm_source=github.com&utm_medium=referral&utm_content=pskrunner14/translator&utm_campaign=Badge_Grade_Dashboard)
+
 *Translator* is a Machine Translation Autoencoder built using Seq2Seq Recurrent Nets with Attention in PyTorch.
 
 ## Dataset
