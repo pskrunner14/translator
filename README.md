@@ -140,8 +140,8 @@ Target: you are too young to travel alone .
 Predicted: you re too young to travel alone . <EOS>
 
 Input: je suis tres desorientee .
-Target: i m all confused .         
-Predicted: i m very lonely . <EOS> 
+Target: i m all confused .
+Predicted: i m very lonely . <EOS>
 
 Input: je suis ton jules n est ce pas ?
 Target: i m your boyfriend aren t i ?
@@ -158,12 +158,3 @@ Predicted: i m the one aren t i ? <EOS>
 
 * Python
 * PyTorch
-* TorchText
-
-## Authors
-
-Prabhsimran Singh
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE.md file for details
