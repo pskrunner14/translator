@@ -177,12 +177,12 @@ def show_plot(points):
     ax.yaxis.set_major_locator(loc)
     plt.plot(points)
 
-def create_models(config, in_words, out_words, batch_size):
+def create_models(config, in_words, out_words):
     logging.info('Creating models...')
-    encoder = EncoderRNN(in_words, int(config['hidden_size']), batch_size=batch_size,
+    encoder = EncoderRNN(in_words, int(config['hidden_size']),
                         num_layers=int(config['num_layers'])).cuda()
                 
-    decoder = AttnDecoderRNN(int(config['hidden_size']), out_words, batch_size=batch_size,
+    decoder = AttnDecoderRNN(int(config['hidden_size']), out_words,
                             num_layers=int(config['num_layers']), 
                             dropout_p=float(config['dropout_p'])).cuda()
     return encoder, decoder
@@ -209,7 +209,7 @@ def main():
         print(random.choice(train_pairs))
         
         encoder, decoder = create_models(config['rnn'], input_lang.n_words, 
-                                        output_lang.n_words, args.batch_size)
+                                        output_lang.n_words)
 
         logging.info('Saving model configuration for evaluation...')
         with open('models/{}/{}.cfg'.format(args.model_name, args.model_name), 'w') as config_file:
@@ -242,7 +242,7 @@ def main():
                 list(fileter(lambda x: x.startswith(max_iter) and '.decoder' in x, files))[0])
 
             encoder, decoder = create_models(config['rnn'], input_lang.n_words, 
-                                            output_lang.n_words, args.batch_size)
+                                            output_lang.n_words)
             encoder.load_state_dict(torch.load(encoder_path))
             decoder.load_state_dict(torch.load(decoder_path))
 

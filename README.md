@@ -93,7 +93,7 @@ Predicted: i m not angry . <EOS>
 
 Input: nous sommes juste fatigues .
 Target: we re just tired .
-Predicted: we re just bored . <EOS>    
+Predicted: we re just bored . <EOS>
 
 Input: nous nous rapprochons .
 Target: we re getting closer .
