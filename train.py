@@ -60,7 +60,7 @@ def parse_arguments():
     
     return parser.parse_args()
 
-def train(training_tensors, encoder, decoder, encoder_optimizer, 
+def optimize(training_tensors, encoder, decoder, encoder_optimizer, 
         decoder_optimizer, loss_function,teacher_forcing_ratio=0.5, max_length=MAX_LENGTH):
     
     encoder_optimizer.zero_grad()
@@ -149,7 +149,7 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=20,
                 training_tensors = [tensors_from_pair(pair, input_lang, 
                                 output_lang) for pair in pairs[i: ]]
             
-            loss = train(training_tensors, encoder, decoder, 
+            loss = optimize(training_tensors, encoder, decoder, 
                         encoder_optimizer, decoder_optimizer, loss_function,
                         teacher_forcing_ratio=teacher_forcing_ratio)
             total_loss += loss
