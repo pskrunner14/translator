@@ -1,19 +1,15 @@
 import os
 import time
 import random
-
 import argparse
-import configparser
 import logging
+import configparser
 
 import torch
+
 from torch import nn
 from torch import optim
-from torch.optim.lr_scheduler import StepLR
-
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
 
 from utils import init_cuda, prepare_data, tensors_from_pair, time_since, save_pickle
 from model import EncoderRNN, AttnDecoderRNN
@@ -125,10 +121,10 @@ def train_epochs(encoder, decoder, pairs, input_lang, output_lang, epochs=20,
     encoder_optimizer = optim.Adam(encoder.parameters(), lr=lr)
     decoder_optimizer = optim.Adam(decoder.parameters(), lr=lr)
 
-    encoder_lr_scheduler = StepLR(encoder_optimizer,
-                                  step_size=epochs // lr_step_divisor, gamma=lr_step_gamma)
-    decoder_lr_scheduler = StepLR(decoder_optimizer,
-                                  step_size=epochs // lr_step_divisor, gamma=lr_step_gamma)
+    encoder_lr_scheduler = optim.lr_scheduler.StepLR(
+        encoder_optimizer, step_size=epochs // lr_step_divisor, gamma=lr_step_gamma)
+    decoder_lr_scheduler = optim.lr_scheduler.StepLR(
+        decoder_optimizer, step_size=epochs // lr_step_divisor, gamma=lr_step_gamma)
 
     loss_function = nn.NLLLoss()
 

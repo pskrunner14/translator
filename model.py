@@ -10,10 +10,11 @@ class EncoderRNN(nn.Module):
     that the decoder hidden weights are initialized/conditioned on.
     """
 
-   def __init__(self, input_size, hidden_size, num_layers=1):
+    def __init__(self, input_size, hidden_size, num_layers=1):
         super(EncoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+
         self.embedding = nn.Embedding(input_size, self.hidden_size)
         self.rnn = nn.LSTM(self.hidden_size, self.hidden_size,
                            self.num_layers, bidirectional=True)
@@ -39,7 +40,6 @@ class AttnDecoderRNN(nn.Module):
     of source sequence from encoder. It generates probability distribution on 
     the target vocabulary after applying attention on each time-step.
     """
-    
 
     def __init__(self, hidden_size, output_size, num_layers=1,
                  dropout_p=0.1, max_length=MAX_LENGTH):
@@ -51,12 +51,12 @@ class AttnDecoderRNN(nn.Module):
         self.num_layers = num_layers
 
         self.embedding = nn.Embedding(self.output_size, self.hidden_size)
-        
+
         self.attn = nn.Linear(self.hidden_size * 2, self.max_length)
         self.attn_combine = nn.Linear(self.hidden_size * 2, self.hidden_size)
-        
+
         self.dropout = nn.Dropout(self.dropout_p)
-        
+
         self.rnn = nn.LSTM(self.hidden_size, self.hidden_size,
                            self.num_layers, bidirectional=True)
         self.out = nn.Linear(self.hidden_size, self.output_size)
